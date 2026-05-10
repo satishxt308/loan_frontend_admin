@@ -385,13 +385,13 @@ const StudentDocuments = () => {
 
  const updateApplicationStatus = async (id, status, reason) => {
   try {
-    const response = await fetch(`${API_BASE}/admin/applications/${id}`, {
+    const response = await fetch(`${API_BASE}/admin/applications/${id}/status`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, rejection_reason: reason }),
     });
 
-    const data = await response.json(); // ✅ ADD THIS
+    const data = await response.json(); // ✅ ADD THIS 
 
     if (!data.success) {
       setError(data.message || "Action failed");  // ✅ SHOW ALERT

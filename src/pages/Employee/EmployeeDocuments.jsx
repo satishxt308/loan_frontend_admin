@@ -581,10 +581,14 @@ const EmployeeDocuments = () => {
                     
                     // Check if all documents are approved
                     const allDocsApproved = empDocuments.length > 0 && empDocuments.every(doc => doc.status === "approved");
-                    const showVerifyButton = true;
-                    const canClickVerify =
+                   const showVerifyButton =
   emp.status === "approved" &&
-  emp.emp_card_verified === true &&   // or your correct field
+  allDocsApproved &&
+  !emp.emp_card_verified;
+                  const canClickVerify =
+  emp.status === "approved" &&
+  (!emp.employee_id || emp.employee_id === "") &&
+  !emp.emp_card_verified &&
   allDocsApproved;
 
                     return (

@@ -13,6 +13,8 @@ import StudentDocuments from "./pages/Student/StudentDocuments";
 import EmployeeDocuments from './pages/Employee/EmployeeDocuments';
 import PaymentSettings from './pages/PaymentSettings';
 import WalletRequests from './pages/Employee/WalletRequests';
+import SchemeData from './pages/Student/SchemeData';
+import GuardiansData from "./pages/GuardiansData";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,6 +51,8 @@ function App() {
                    <Route path="/videos" element={<Videos />} />
                    <Route path="/banners" element={<Banners />} />
                    <Route path="/payment-settings" element={<PaymentSettings />} />
+                   <Route path="/students/scheme-data" element={<SchemeData />} />
+<Route path="/students/guardians" element={<GuardiansData />} />
                 </Routes>
               </Layout>
             </PrivateRoute>

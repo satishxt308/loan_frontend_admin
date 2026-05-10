@@ -38,12 +38,12 @@ const Sidebar = ({ sidebarOpen }) => {
   const studentSubmenu = [
     { path: '/students/list', name: 'Student List', icon: Users },
     { path: '/students/documents', name: 'Student Documents', icon: FileText },
-    { path: '/students/loan-data', name: 'Loan Data', icon: CreditCard },
-    { path: '/students/continue-loan', name: 'Continue Loan', icon: FolderCheck },
-    { path: '/students/closed-loan', name: 'Closed Loan', icon: FolderX },
+    // { path: '/students/loan-data', name: 'Loan Data', icon: CreditCard },
+    // { path: '/students/continue-loan', name: 'Continue Loan', icon: FolderCheck },
+    // { path: '/students/closed-loan', name: 'Closed Loan', icon: FolderX },
     { path: '/students/scheme-data', name: 'Scheme Data', icon: ClipboardList },
-    { path: '/students/continue-scheme', name: 'Continue Scheme', icon: FolderCheck },
-    { path: '/students/closed-scheme', name: 'Closed Scheme', icon: FolderX },
+    // { path: '/students/continue-scheme', name: 'Continue Scheme', icon: FolderCheck },
+    // { path: '/students/closed-scheme', name: 'Closed Scheme', icon: FolderX },
     { path: '/students/guardians', name: 'Guardians Data', icon: UserCheck }
   ];
  
