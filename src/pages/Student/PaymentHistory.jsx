@@ -243,7 +243,7 @@ export default function PaymentHistory() {
               }`}
             >
               <ArrowUpRight className="w-4 h-4" />
-              Paisa Aaya (Inflow)
+              (Inflow)
             </button>
             <button
               onClick={() => { setActiveTab("outflow"); setSearchQuery(""); }}
@@ -254,7 +254,7 @@ export default function PaymentHistory() {
               }`}
             >
               <ArrowDownLeft className="w-4 h-4" />
-              Paisa Gaya (Outflow)
+              (Outflow)
             </button>
           </div>
 
