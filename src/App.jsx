@@ -15,6 +15,10 @@ import PaymentSettings from './pages/PaymentSettings';
 import WalletRequests from './pages/Employee/WalletRequests';
 import SchemeData from './pages/Student/SchemeData';
 import GuardiansData from "./pages/GuardiansData";
+import CreateLoans from './pages/CreateLoans';
+import LoanApplications from './pages/Student/LoanApplications';
+import VerifyPayments from './pages/Student/VerifyPayments';
+import PaymentHistory from './pages/Student/PaymentHistory';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -41,18 +45,21 @@ function App() {
               <Layout setIsAuthenticated={setIsAuthenticated}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
-<Route path="/students/list" element={<StudentList />} />
-<Route path="/employees/documents" element={<EmployeeDocuments />} />
-
-<Route path="/students/documents" element={<StudentDocuments />} />
+                  <Route path="/students/list" element={<StudentList />} />
+                  <Route path="/employees/documents" element={<EmployeeDocuments />} />
+                  <Route path="/students/documents" element={<StudentDocuments />} />
                   <Route path="/employees/list" element={<EmployeeList />} />
-<Route path="/employees/wallet-requests" element={<WalletRequests />} />
-                   <Route path="/support-policy" element={<SupportPolicy />} />
-                   <Route path="/videos" element={<Videos />} />
-                   <Route path="/banners" element={<Banners />} />
-                   <Route path="/payment-settings" element={<PaymentSettings />} />
-                   <Route path="/students/scheme-data" element={<SchemeData />} />
-<Route path="/students/guardians" element={<GuardiansData />} />
+                  <Route path="/employees/wallet-requests" element={<WalletRequests />} />
+                  <Route path="/support-policy" element={<SupportPolicy />} />
+                  <Route path="/videos" element={<Videos />} />
+                  <Route path="/banners" element={<Banners />} />
+                  <Route path="/payment-settings" element={<PaymentSettings />} />
+                  <Route path="/students/scheme-data" element={<SchemeData />} />
+                  <Route path="/students/guardians" element={<GuardiansData />} />
+                  <Route path="/students/create-loans" element={<CreateLoans />} />
+                  <Route path="/students/loan-data" element={<LoanApplications />} />
+                  <Route path="/students/verify-payments" element={<VerifyPayments />} />
+                  <Route path="/students/payment-history" element={<PaymentHistory />} />
                 </Routes>
               </Layout>
             </PrivateRoute>

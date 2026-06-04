@@ -123,7 +123,7 @@ const ApplicationModal = ({ application, onClose, onUpdateStatus }) => {
             ) : (
               <>
                 <InfoCard label="Employment Status" value={application.employment_status} />
-                <InfoCard label="Loan Reason" value={application.loan_reason} />
+                <InfoCard label="Application Reason" value={application.loan_reason} />
               </>
             )}
           </Section>
