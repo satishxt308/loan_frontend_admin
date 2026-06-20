@@ -641,13 +641,14 @@ const StudentList = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden sm:table-cell">Gender</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden lg:table-cell">OTP Verified</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden xl:table-cell">Created By</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
                     {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="text-center px-4 py-8 text-gray-400">
+                        <td colSpan={10} className="text-center px-4 py-8 text-gray-400">
                           No students found
                         </td>
                       </tr>
@@ -686,6 +687,16 @@ const StudentList = () => {
                               <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">
                                 Pending
                               </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap hidden xl:table-cell">
+                            {student.created_by ? (
+                              <div>
+                                <p className="text-sm font-medium text-violet-300">{student.created_by_name || 'Employee'}</p>
+                                <p className="text-xs text-gray-500">ID: {student.created_by} • {student.created_by_phone || ''}</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">Self / Admin</span>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">

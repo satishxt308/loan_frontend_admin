@@ -7,11 +7,11 @@ const Login = ({ setIsAuthenticated }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
+ 
   // Static credentials
   const validCredentials = {
-    email: 'admin@pswb.com',
-    password: 'admin123'
+    email: 'admindata@pswb.com',
+    password: '123admin'
   };
 
   const handleSubmit = (e) => {
@@ -102,18 +102,6 @@ const Login = ({ setIsAuthenticated }) => {
               Login to Dashboard
             </button>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 pt-4 border-t border-gray-700">
-              <p className="text-xs text-gray-500 text-center mb-2">Demo Credentials</p>
-              <div className="bg-gray-900/50 rounded-lg p-3 space-y-1">
-                <p className="text-sm text-gray-400">
-                  <span className="text-amber-400">Email:</span> admin@pswb.com
-                </p>
-                <p className="text-sm text-gray-400">
-                  <span className="text-amber-400">Password:</span> admin123
-                </p>
-              </div>
-            </div>
           </form>
         </div>
 

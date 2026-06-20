@@ -56,7 +56,8 @@ const Sidebar = ({ sidebarOpen }) => {
   const employeeSubmenu = [
     { path: '/employees/list', name: 'Employee List', icon: Briefcase },
     { path: '/employees/documents', name: 'Employee Documents', icon: FileSpreadsheet },
-   { path: '/employees/wallet-requests', name: 'Wallet Request', icon: Wallet }
+    { path: '/employees/wallet-requests', name: 'Wallet Request', icon: Wallet },
+    { path: '/employees/wallet-management', name: 'Wallet Management', icon: CreditCard }
   ];
 
   const mainMenuItems = [
@@ -160,8 +161,6 @@ const Sidebar = ({ sidebarOpen }) => {
             'employee'
           )}
 
-          {/* Settings Menu */}
-          {renderMenuItem({ path: '/settings', name: 'Settings', icon: Settings }, 'settings')}
         </nav>
         
         <div className={`px-3 pt-4 border-t border-gray-700 ${!sidebarOpen && 'text-center'}`}>
