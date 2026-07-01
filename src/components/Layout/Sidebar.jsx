@@ -22,13 +22,16 @@ import {
   Building,
   Video,
   ShieldCheck,
-  History
+  History,
+  Users as CitizensIcon,
+  FileSearch
 } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const [openMenus, setOpenMenus] = useState({
     student: false,
-    employee: false
+    employee: false,
+    citizens: false
   });
 
   const toggleMenu = (menu) => {
@@ -47,7 +50,7 @@ const Sidebar = ({ sidebarOpen }) => {
     { path: '/students/scheme-data', name: 'Scheme Data', icon: ClipboardList },
     // { path: '/students/continue-scheme', name: 'Continue Scheme', icon: FolderCheck },
     // { path: '/students/closed-scheme', name: 'Closed Scheme', icon: FolderX },
-    { path: '/students/guardians', name: 'Guardians Data', icon: UserCheck },
+    // { path: '/students/guardians', name: 'Guardians Data', icon: UserCheck }, // Commented out
     { path: '/students/verify-payments', name: 'Verify Payments', icon: ShieldCheck },
     { path: '/students/payment-history', name: 'Payment History', icon: History },
   ];
@@ -60,10 +63,16 @@ const Sidebar = ({ sidebarOpen }) => {
     { path: '/employees/wallet-management', name: 'Wallet Management', icon: CreditCard }
   ];
 
+  // Citizens submenu items
+  const citizensSubmenu = [
+    { path: '/citizens/list', name: 'Citizens List', icon: CitizensIcon },
+    { path: '/citizens/documents', name: 'Citizens Documents', icon: FileSearch },
+  ];
+
   const mainMenuItems = [
     { path: '/', name: 'Dashboard', icon: LayoutDashboard },
-     { path: '/videos', name: 'Videos', icon: Video },
-      { path: '/banners', name: 'Banners', icon: ImageIcon },
+    { path: '/videos', name: 'Videos', icon: Video },
+    { path: '/banners', name: 'Banners', icon: ImageIcon },
     { path: '/support-policy', name: 'Support & Policy', icon: HelpCircle },
     { path: '/payment-settings', name: 'Payment Setup', icon: CreditCard },
   ];
@@ -151,6 +160,14 @@ const Sidebar = ({ sidebarOpen }) => {
             <GraduationCap className="w-5 h-5 shrink-0" />,
             studentSubmenu,
             'student'
+          )}
+
+          {/* Citizens Section with Submenu */}
+          {renderSubmenu(
+            'Citizens',
+            <CitizensIcon className="w-5 h-5 shrink-0" />,
+            citizensSubmenu,
+            'citizens'
           )}
 
           {/* Employee Section with Submenu */}
