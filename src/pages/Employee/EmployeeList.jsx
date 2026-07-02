@@ -783,7 +783,7 @@ const EmployeeList = () => {
                               >
                                 <Edit className="w-4 h-4 text-gray-400 group-hover:text-amber-400" />
                               </button>
-                              <button
+                              {/* <button
                                 onClick={() => {
                                   setEmployeeToDelete(employee);
                                   setShowDeleteConfirm(true);
@@ -792,7 +792,7 @@ const EmployeeList = () => {
                                 title="Delete Employee"
                               >
                                 <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>

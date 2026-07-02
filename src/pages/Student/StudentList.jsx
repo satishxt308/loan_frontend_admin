@@ -708,7 +708,7 @@ const StudentList = () => {
                               >
                                 <Edit className="w-4 h-4 text-gray-400 group-hover:text-amber-400" />
                               </button>
-                              <button
+                              {/* <button
                                 onClick={() => {
                                   setStudentToDelete(student);
                                   setShowDeleteConfirm(true);
@@ -717,7 +717,7 @@ const StudentList = () => {
                                 title="Delete Student"
                               >
                                 <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>
