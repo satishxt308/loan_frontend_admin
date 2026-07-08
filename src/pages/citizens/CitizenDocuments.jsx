@@ -723,6 +723,7 @@ const CitizenDocuments = () => {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Nominee</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Aadhaar</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
@@ -749,6 +750,7 @@ const CitizenDocuments = () => {
                         <tr className="hover:bg-gray-800/50 transition-colors">
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-amber-400">{citizen.id}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{citizen.name || "N/A"}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{citizen.nominee_name || citizen.nominee || "N/A"}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{citizen.phone || "N/A"}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
                             {citizen.aadhaar_number ? `XXXX-XXXX-${citizen.aadhaar_number.slice(-4)}` : "N/A"}
