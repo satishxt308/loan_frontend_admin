@@ -472,8 +472,15 @@ const updatePaymentStatus = async (id, status, reason) => {
 
     if (status === "approved") {
       endpoint += `approve/${id}`;
-    } else {
+    } else if (status === "rejected") {
       endpoint += `reject/${id}`;
+    } else {
+      // If status is "pending", we need to revert - check if there's a revert endpoint
+      // If not, we might need to handle this differently
+      setProcessingPaymentId(null);
+      setError("Revert to pending is not supported");
+      setTimeout(() => setError(""), 3000);
+      return;
     }
 
     const response = await fetch(endpoint, {
@@ -490,99 +497,62 @@ const updatePaymentStatus = async (id, status, reason) => {
     const data = await response.json();
 
     if (data.success) {
-      // ✅ Immediately update payment state
-      setPayments(prev =>
-        prev.map(payment =>
-          payment.id === id
-            ? {
-                ...payment,
-                status:
-                  status === "approved"
-                    ? "APPROVED"
-                    : status === "rejected"
-                    ? "REJECTED"
-                    : "PENDING",
-                approved_at:
-                  status === "approved"
-                    ? new Date().toISOString()
-                    : payment.approved_at,
-                rejection_reason:
-                  status === "rejected"
-                    ? reason
-                    : null,
-              }
-            : payment
-        )
-      );
-
-      // 🔥 IMPORTANT: Refresh citizen data to update verification status
-      // This ensures the payment approval check works correctly
-      const citizensRes = await fetch(`${API_BASE}/citizens/all`);
-      const citizensData = await citizensRes.json();
-      if (citizensData.success) {
-        setCitizens(citizensData.data || []);
-      }
-
-      // Also refresh documents to keep everything in sync
-      const docsRes = await fetch(`${API_BASE}/citizen-documents`);
-      const docsData = await docsRes.json();
-      if (docsData.success) {
-        const transformedDocs = [];
-        docsData.data.forEach(citizen => {
-          if (citizen.photo) {
-            transformedDocs.push({
-              id: `photo_${citizen.id}`,
-              citizen_id: citizen.id,
-              document_key: 'Photo',
-              document_type: 'photo',
-              document_name: `${citizen.name || 'Citizen'}_photo`,
-              document_file: citizen.photo,
-              status: citizen.verification_status || 'pending',
-              rejection_reason: citizen.rejection_reason || null,
-              created_at: citizen.created_at,
-              updated_at: citizen.updated_at,
-              mime_type: 'image/jpeg',
-              citizen_name: citizen.name,
-            });
+      // Find the payment that was updated
+      const updatedPayment = payments.find(p => p.id === id);
+      
+      // ✅ Update payment state immediately
+      setPayments(prevPayments => {
+        const updatedPayments = prevPayments.map(payment => {
+          if (payment.id === id) {
+            let newStatus = "PENDING";
+            if (status === "approved") newStatus = "APPROVED";
+            else if (status === "rejected") newStatus = "REJECTED";
+            
+            return {
+              ...payment,
+              status: newStatus,
+              approved_at: status === "approved" ? new Date().toISOString() : payment.approved_at,
+              rejection_reason: status === "rejected" ? reason : null,
+            };
           }
-          if (citizen.aadhaar_card_image) {
-            transformedDocs.push({
-              id: `aadhaar_${citizen.id}`,
-              citizen_id: citizen.id,
-              document_key: 'Aadhaar Card',
-              document_type: 'aadhaar_card',
-              document_name: `${citizen.name || 'Citizen'}_aadhaar`,
-              document_file: citizen.aadhaar_card_image,
-              status: citizen.verification_status || 'pending',
-              rejection_reason: citizen.rejection_reason || null,
-              created_at: citizen.created_at,
-              updated_at: citizen.updated_at,
-              mime_type: 'image/jpeg',
-              citizen_name: citizen.name,
-            });
-          }
-          if (citizen.pan_card_image) {
-            transformedDocs.push({
-              id: `pan_${citizen.id}`,
-              citizen_id: citizen.id,
-              document_key: 'PAN Card',
-              document_type: 'pan_card',
-              document_name: `${citizen.name || 'Citizen'}_pan`,
-              document_file: citizen.pan_card_image,
-              status: citizen.verification_status || 'pending',
-              rejection_reason: citizen.rejection_reason || null,
-              created_at: citizen.created_at,
-              updated_at: citizen.updated_at,
-              mime_type: 'image/jpeg',
-              citizen_name: citizen.name,
-            });
-          }
+          return payment;
         });
-        setDocuments(transformedDocs);
+        return updatedPayments;
+      });
+
+      // 🔥 Also update citizen verification status if payment is approved
+      if (status === "approved" && updatedPayment) {
+        const citizenId = updatedPayment.citizen_id || updatedPayment.citizen_table_id;
+        
+        // Update citizen status locally
+        setCitizens(prevCitizens => {
+          return prevCitizens.map(citizen => {
+            if (citizen.id === citizenId) {
+              return { ...citizen, verification_status: "verified" };
+            }
+            return citizen;
+          });
+        });
+
+        // Update document statuses locally
+        setDocuments(prevDocs => {
+          return prevDocs.map(doc => {
+            if (doc.citizen_id === citizenId) {
+              return { ...doc, status: "verified" };
+            }
+            return doc;
+          });
+        });
       }
+
+      // ✅ Force a re-fetch in background to ensure consistency
+      // This will update any other data that might have changed
+      setTimeout(() => {
+        fetchData();
+      }, 500);
 
       setSuccessMessage(
-        `Payment ${status === "approved" ? "approved" : "rejected"} successfully!`
+        `Payment ${status === "approved" ? "approved" : status === "rejected" ? "rejected" : "updated"} successfully!`
       );
 
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -593,7 +563,7 @@ const updatePaymentStatus = async (id, status, reason) => {
     }
 
   } catch (error) {
-    console.error(error);
+    console.error("Error updating payment:", error);
     setError("Failed to update payment status");
     setTimeout(() => setError(""), 3000);
   } finally {
@@ -669,20 +639,24 @@ const updatePaymentStatus = async (id, status, reason) => {
     );
   };
 
-  const getPaymentStatusBadge = (status) => {
-    const statusMap = {
-      "APPROVED": { icon: CheckCircle, color: "green", label: "Approved", bg: "bg-green-500/20", text: "text-green-400" },
-      "REJECTED": { icon: XCircle, color: "red", label: "Rejected", bg: "bg-red-500/20", text: "text-red-400" },
-      "PENDING": { icon: Clock, color: "yellow", label: "Waiting for Approval", bg: "bg-yellow-500/20", text: "text-yellow-400" },
-    };
-    const s = statusMap[status] || statusMap.PENDING;
-    const Icon = s.icon;
-    return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text} flex items-center gap-1 w-fit`}>
-        <Icon size={10} /> {s.label}
-      </span>
-    );
+ const getPaymentStatusBadge = (status) => {
+  // Normalize status to uppercase
+  const normalizedStatus = status ? status.toUpperCase() : "PENDING";
+  
+  const statusMap = {
+    "APPROVED": { icon: CheckCircle, color: "green", label: "Approved", bg: "bg-green-500/20", text: "text-green-400" },
+    "REJECTED": { icon: XCircle, color: "red", label: "Rejected", bg: "bg-red-500/20", text: "text-red-400" },
+    "PENDING": { icon: Clock, color: "yellow", label: "Waiting for Approval", bg: "bg-yellow-500/20", text: "text-yellow-400" },
   };
+  
+  const s = statusMap[normalizedStatus] || statusMap.PENDING;
+  const Icon = s.icon;
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text} flex items-center gap-1 w-fit`}>
+      <Icon size={10} /> {s.label}
+    </span>
+  );
+};
 
   const getPaymentMethodIcon = (method) => {
     if (method === "qr") {
