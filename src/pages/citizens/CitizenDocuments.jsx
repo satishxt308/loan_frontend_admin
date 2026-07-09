@@ -464,41 +464,80 @@ const CitizenDocuments = () => {
     }
   };
 
-  const updatePaymentStatus = async (id, status, reason) => {
-    setProcessingPaymentId(id);
-    try {
-      let endpoint = `${API_BASE}/citizen-payment/admin/`;
-      if (status === "approved") {
-        endpoint += `approve/${id}`;
-      } else {
-        endpoint += `reject/${id}`;
-      }
-      
-      const response = await fetch(endpoint, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          admin_id: 1,
-          rejection_reason: reason 
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSuccessMessage(`Payment ${status === 'approved' ? 'approved' : 'rejected'} successfully!`);
-        setTimeout(() => setSuccessMessage(""), 3000);
-        fetchData();
-      } else {
-        setError(data.message || "Failed to update payment");
-        setTimeout(() => setError(""), 3000);
-      }
-    } catch (error) {
-      console.error("Error updating payment:", error);
-      setError("Failed to update payment status");
-      setTimeout(() => setError(""), 3000);
-    } finally {
-      setProcessingPaymentId(null);
+ const updatePaymentStatus = async (id, status, reason) => {
+  setProcessingPaymentId(id);
+
+  try {
+    let endpoint = `${API_BASE}/citizen-payment/admin/`;
+
+    if (status === "approved") {
+      endpoint += `approve/${id}`;
+    } else {
+      endpoint += `reject/${id}`;
     }
-  };
+
+    const response = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        admin_id: 1,
+        rejection_reason: reason,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+
+      // ✅ Immediately update payment state
+      setPayments(prev =>
+        prev.map(payment =>
+          payment.id === id
+            ? {
+                ...payment,
+                status:
+                  status === "approved"
+                    ? "APPROVED"
+                    : status === "rejected"
+                    ? "REJECTED"
+                    : "PENDING",
+                approved_at:
+                  status === "approved"
+                    ? new Date().toISOString()
+                    : payment.approved_at,
+                rejection_reason:
+                  status === "rejected"
+                    ? reason
+                    : null,
+              }
+            : payment
+        )
+      );
+
+      setSuccessMessage(
+        `Payment ${status === "approved" ? "approved" : "rejected"} successfully!`
+      );
+
+      setTimeout(() => setSuccessMessage(""), 3000);
+
+      // Optional: refresh in background to sync with DB
+      fetchData();
+
+    } else {
+      setError(data.message || "Failed to update payment");
+      setTimeout(() => setError(""), 3000);
+    }
+
+  } catch (error) {
+    console.error(error);
+    setError("Failed to update payment status");
+    setTimeout(() => setError(""), 3000);
+  } finally {
+    setProcessingPaymentId(null);
+  }
+};
 
   const getDocumentsForCitizen = (citizenId) => {
     return documents.filter((doc) => doc.citizen_id === citizenId);
