@@ -522,9 +522,6 @@ const CitizenDocuments = () => {
 
       setTimeout(() => setSuccessMessage(""), 3000);
 
-      // Optional: refresh in background to sync with DB
-      fetchData();
-
     } else {
       setError(data.message || "Failed to update payment");
       setTimeout(() => setError(""), 3000);
@@ -829,7 +826,7 @@ const CitizenDocuments = () => {
                         {/* Expanded Row */}
                         {isExpanded && (
                           <tr className="bg-gray-900/50">
-                            <td colSpan={8} className="px-4 py-4">
+                            <td colSpan={9} className="px-4 py-4">
                               <div className="space-y-6">
                                 {/* Documents Section */}
                                 <div>
