@@ -464,7 +464,7 @@ const CitizenDocuments = () => {
     }
   };
 
- const updatePaymentStatus = async (id, status, reason) => {
+const updatePaymentStatus = async (id, status, reason) => {
   setProcessingPaymentId(id);
 
   try {
@@ -490,7 +490,6 @@ const CitizenDocuments = () => {
     const data = await response.json();
 
     if (data.success) {
-
       // ✅ Immediately update payment state
       setPayments(prev =>
         prev.map(payment =>
@@ -515,6 +514,72 @@ const CitizenDocuments = () => {
             : payment
         )
       );
+
+      // 🔥 IMPORTANT: Refresh citizen data to update verification status
+      // This ensures the payment approval check works correctly
+      const citizensRes = await fetch(`${API_BASE}/citizens/all`);
+      const citizensData = await citizensRes.json();
+      if (citizensData.success) {
+        setCitizens(citizensData.data || []);
+      }
+
+      // Also refresh documents to keep everything in sync
+      const docsRes = await fetch(`${API_BASE}/citizen-documents`);
+      const docsData = await docsRes.json();
+      if (docsData.success) {
+        const transformedDocs = [];
+        docsData.data.forEach(citizen => {
+          if (citizen.photo) {
+            transformedDocs.push({
+              id: `photo_${citizen.id}`,
+              citizen_id: citizen.id,
+              document_key: 'Photo',
+              document_type: 'photo',
+              document_name: `${citizen.name || 'Citizen'}_photo`,
+              document_file: citizen.photo,
+              status: citizen.verification_status || 'pending',
+              rejection_reason: citizen.rejection_reason || null,
+              created_at: citizen.created_at,
+              updated_at: citizen.updated_at,
+              mime_type: 'image/jpeg',
+              citizen_name: citizen.name,
+            });
+          }
+          if (citizen.aadhaar_card_image) {
+            transformedDocs.push({
+              id: `aadhaar_${citizen.id}`,
+              citizen_id: citizen.id,
+              document_key: 'Aadhaar Card',
+              document_type: 'aadhaar_card',
+              document_name: `${citizen.name || 'Citizen'}_aadhaar`,
+              document_file: citizen.aadhaar_card_image,
+              status: citizen.verification_status || 'pending',
+              rejection_reason: citizen.rejection_reason || null,
+              created_at: citizen.created_at,
+              updated_at: citizen.updated_at,
+              mime_type: 'image/jpeg',
+              citizen_name: citizen.name,
+            });
+          }
+          if (citizen.pan_card_image) {
+            transformedDocs.push({
+              id: `pan_${citizen.id}`,
+              citizen_id: citizen.id,
+              document_key: 'PAN Card',
+              document_type: 'pan_card',
+              document_name: `${citizen.name || 'Citizen'}_pan`,
+              document_file: citizen.pan_card_image,
+              status: citizen.verification_status || 'pending',
+              rejection_reason: citizen.rejection_reason || null,
+              created_at: citizen.created_at,
+              updated_at: citizen.updated_at,
+              mime_type: 'image/jpeg',
+              citizen_name: citizen.name,
+            });
+          }
+        });
+        setDocuments(transformedDocs);
+      }
 
       setSuccessMessage(
         `Payment ${status === "approved" ? "approved" : "rejected"} successfully!`
