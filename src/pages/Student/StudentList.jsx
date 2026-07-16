@@ -22,6 +22,7 @@ import {
   Shield,
   Filter
 } from 'lucide-react';
+import ResetPasswordModal from "../../components/ResetPasswordModal";
 import AddStudentModal from "../../components/AddStudentModal";
 import EditStudentModal from "../../components/EditStudentModal";
 
@@ -51,6 +52,7 @@ const StudentList = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [otpExpired, setOtpExpired] = useState(false);
   const [otpTimer, setOtpTimer] = useState(300);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
 
   // Form data for add/edit
   const [formData, setFormData] = useState({
@@ -146,6 +148,10 @@ const StudentList = () => {
       return false;
     }
   };
+  const openResetPasswordModal = (student) => {
+  setSelectedStudent(student);
+  setShowResetPasswordModal(true);
+};
 
   // Format date for input (YYYY-MM-DD)
   const formatDateForInput = (dateString) => {
@@ -402,6 +408,7 @@ const StudentList = () => {
       setSubmitting(false);
     }
   };
+  
 
  const handleToggleStatus = async (student) => {
   const newStatus = !student.is_active;
@@ -548,6 +555,7 @@ const StudentList = () => {
       </div>
     </div>
   );
+
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-0">
@@ -700,25 +708,23 @@ const StudentList = () => {
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => openEditModal(student)}
-                                className="p-1.5 cursor-pointer hover:bg-amber-500/20 rounded-lg transition-colors group"
-                                title="Edit Student"
-                              >
-                                <Edit className="w-4 h-4 text-gray-400 group-hover:text-amber-400" />
-                              </button>
-                              {/* <button
-                                onClick={() => {
-                                  setStudentToDelete(student);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                className="p-1.5 cursor-pointer hover:bg-red-500/20 rounded-lg transition-colors group"
-                                title="Delete Student"
-                              >
-                                <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
-                              </button> */}
-                            </div>
+                           <div className="flex gap-2">
+  <button
+    onClick={() => openEditModal(student)}
+    className="p-1.5 cursor-pointer hover:bg-amber-500/20 rounded-lg transition-colors group"
+    title="Edit Student"
+  >
+    <Edit className="w-4 h-4 text-gray-400 group-hover:text-amber-400" />
+  </button>
+
+  <button
+    onClick={() => openResetPasswordModal(student)}
+    className="p-1.5 cursor-pointer hover:bg-blue-500/20 rounded-lg transition-colors group"
+    title="Reset Password"
+  >
+    <Key className="w-4 h-4 text-gray-400 group-hover:text-blue-400" />
+  </button>
+</div>
                           </td>
                         </tr>
                       ))
@@ -782,6 +788,15 @@ const StudentList = () => {
         )}
 
         {showDeleteConfirm && <DeleteConfirmModal />}
+        {showResetPasswordModal && (
+  <ResetPasswordModal
+    student={selectedStudent}
+    onClose={() => {
+      setShowResetPasswordModal(false);
+      setSelectedStudent(null);
+    }}
+  />
+)}
       </div>
     </div>
   );

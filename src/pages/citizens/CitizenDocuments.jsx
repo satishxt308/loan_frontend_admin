@@ -20,6 +20,7 @@ import {
   User,
   CreditCard,
   File,
+  Check,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -41,7 +42,6 @@ const DocumentPreviewModal = ({ document, onClose }) => {
     return <FileText size={48} className="text-amber-400" />;
   };
 
-  // Determine what to display based on document type
   const getImageSource = () => {
     if (document.document_file) return document.document_file;
     if (document.photo) return document.photo;
@@ -54,13 +54,13 @@ const DocumentPreviewModal = ({ document, onClose }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" 
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" 
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl">
-        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+      <div className="bg-gray-800 rounded-2xl w-[400px] max-w-[400px] border border-gray-700 shadow-2xl">
+        <div className="p-2 pl-3 border-b border-gray-700 flex justify-between items-center">
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-sm font-semibold text-white">
               {document.document_key || document.document_type || document.name || "Document Preview"}
             </h3>
             <p className="text-gray-400 text-sm">
@@ -75,12 +75,12 @@ const DocumentPreviewModal = ({ document, onClose }) => {
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
-        <div className="p-4 flex justify-center items-center min-h-[400px] max-h-[70vh] overflow-auto">
+        <div className="p-4 flex justify-center items-center min-h-[200px] max-h-[50vh] overflow-auto">
           {imageSrc ? (
             <img 
               src={imageSrc} 
               alt={document.document_name || document.document_type || "Document"}
-              className="max-w-full max-h-[60vh] object-contain rounded-lg"
+              className="max-w-full max-h-[40vh] object-contain rounded-lg"
             />
           ) : (
             <div className="text-center text-gray-400">
@@ -90,7 +90,7 @@ const DocumentPreviewModal = ({ document, onClose }) => {
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-gray-700 flex justify-between items-center">
+        <div className="p-2 border-t border-gray-700 flex justify-between items-center">
           <div className="text-sm text-gray-400">
             <span className={`px-2 py-0.5 rounded-full text-xs ${
               document.status === "approved" || document.verification_status === "approved" || document.verification_status === "verified"
@@ -105,12 +105,6 @@ const DocumentPreviewModal = ({ document, onClose }) => {
               <span className="ml-2 text-red-400 text-xs">Reason: {document.rejection_reason}</span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -121,17 +115,46 @@ const DocumentPreviewModal = ({ document, onClose }) => {
 const PaymentPreviewModal = ({ payment, onClose }) => {
   if (!payment) return null;
 
+  const getImageSource = () => {
+    if (!payment.payment_image) return null;
+    
+    if (payment.payment_image.startsWith('data:image')) {
+      return payment.payment_image;
+    }
+    
+    if (payment.payment_image.startsWith('/9j/')) {
+      return `data:image/jpeg;base64,${payment.payment_image}`;
+    }
+    
+    if (payment.payment_image.startsWith('iVBOR')) {
+      return `data:image/png;base64,${payment.payment_image}`;
+    }
+    
+    if (payment.payment_image.startsWith('http://') || payment.payment_image.startsWith('https://')) {
+      return payment.payment_image;
+    }
+    
+    return payment.payment_image;
+  };
+
+  const imageSrc = getImageSource();
+  const isWallet = payment.payment_method?.toLowerCase() === 'wallet';
+
   return (
     <div 
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" 
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" 
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl">
-        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+      <div className="bg-gray-800 rounded-2xl w-[400px] max-w-xl border border-gray-700 shadow-2xl">
+        <div className="p-2 pl-4 border-b border-gray-700 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-semibold text-white">Payment Proof</h3>
             <p className="text-gray-400 text-sm">
-              {payment.payment_method === "qr" ? "QR Payment" : "Wallet Payment"}
+              {payment.payment_method === "qr" ? "QR Payment" : 
+               payment.payment_method === "upi" ? "UPI Payment" :
+               payment.payment_method === "bank" ? "Bank Transfer" :
+               payment.payment_method === "wallet" ? "Wallet Payment" :
+               payment.payment_method || "Unknown Payment"}
               {payment.utr && ` | UTR: ${payment.utr}`}
             </p>
           </div>
@@ -142,159 +165,370 @@ const PaymentPreviewModal = ({ payment, onClose }) => {
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
-        <div className="p-4 flex justify-center items-center min-h-[400px] max-h-[70vh] overflow-auto">
-          {payment.payment_image ? (
+        <div className="p-4 flex justify-center items-center min-h-[200px] max-h-[70vh] overflow-auto">
+          {imageSrc ? (
             <img 
-              src={payment.payment_image} 
+              src={imageSrc} 
               alt="Payment Proof"
               className="max-w-full max-h-[60vh] object-contain rounded-lg"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                const parent = e.target.parentElement;
+                if (parent) {
+                  parent.innerHTML = `
+                    <div class="text-center text-gray-400">
+                      <svg class="mx-auto mb-4 w-16 h-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <p>Failed to load payment image</p>
+                      ${payment.utr ? `<p class="text-sm mt-2">UTR: ${payment.utr}</p>` : ''}
+                    </div>
+                  `;
+                }
+              }}
             />
           ) : (
             <div className="text-center text-gray-400">
-              {payment.payment_method === "qr" ? (
+              {isWallet ? (
                 <>
-                  <QrCode size={64} className="mx-auto mb-4 text-amber-400" />
-                  <p>QR Payment - No image attached</p>
-                  {payment.utr && <p className="text-sm mt-2">UTR: {payment.utr}</p>}
+                  <Wallet size={64} className="mx-auto mb-4 text-amber-400" />
+                  <p>Wallet Payment - No screenshot required</p>
+                  {payment.wallet_transaction_id && (
+                    <p className="text-sm mt-2">Transaction ID: {payment.wallet_transaction_id}</p>
+                  )}
                 </>
               ) : (
                 <>
-                  <Wallet size={64} className="mx-auto mb-4 text-amber-400" />
-                  <p>Wallet Payment - No image attached</p>
+                  <ImageIcon size={64} className="mx-auto mb-4 text-amber-400" />
+                  <p>No payment screenshot attached</p>
+                  {payment.utr && <p className="text-sm mt-2">UTR: {payment.utr}</p>}
                 </>
               )}
             </div>
           )}
-        </div>
-        <div className="p-4 border-t border-gray-700 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// Status Change Modal
-const StatusChangeModal = ({ citizen, onClose, onUpdate }) => {
-  const [status, setStatus] = useState(citizen?.verification_status || "pending");
+// Review Modal - Shows all documents and payments with checkboxes
+const ReviewModal = ({ citizen, documents, payments, onClose, onApprove, onReject }) => {
+  const [selectedItems, setSelectedItems] = useState([]);
   const [rejectReason, setRejectReason] = useState("");
-  const [showReason, setShowReason] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [previewPayment, setPreviewPayment] = useState(null);
 
   if (!citizen) return null;
 
-  const handleSubmit = async () => {
-    if (status === "rejected" && !rejectReason.trim()) {
-      alert("Please provide a rejection reason");
+  const allItems = [
+    ...documents.map(doc => ({ ...doc, type: 'document' })),
+    ...payments.map(pay => ({ ...pay, type: 'payment' }))
+  ];
+
+  const handleSelectAll = () => {
+    const allIds = allItems.map(item => item.id);
+    const allSelected = allIds.every(id => selectedItems.includes(id));
+    
+    if (allSelected) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(allIds);
+    }
+  };
+
+  const toggleItem = (id) => {
+    setSelectedItems(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const isAllSelected = () => {
+    const allIds = allItems.map(item => item.id);
+    return allIds.length > 0 && allIds.every(id => selectedItems.includes(id));
+  };
+
+  const handleApprove = async () => {
+    if (selectedItems.length === 0) {
+      alert("Please select at least one item to approve");
       return;
     }
+    
+    // Document IDs contain underscore (photo_, aadhaar_, pan_)
+    // Payment IDs are numeric (just numbers)
+    const docIds = selectedItems.filter(id => String(id).includes("_"));
+    const paymentIds = selectedItems
+      .filter(id => !String(id).includes("_"))
+      .map(id => Number(id)); // Convert to number for API
+
     setSubmitting(true);
-    await onUpdate(citizen.id, status, rejectReason);
+    await onApprove(citizen.id, docIds, paymentIds);
     setSubmitting(false);
     onClose();
   };
 
-  return (
-    <div 
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" 
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl">
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold text-white">Update Status</h3>
-            <button 
-              onClick={onClose} 
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-          <p className="text-gray-400 text-sm mt-1">{citizen.name}</p>
-        </div>
+  const handleReject = async () => {
+    if (selectedItems.length === 0) {
+      alert("Please select at least one item to reject");
+      return;
+    }
 
-        <div className="p-6 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">Select Status</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => {
-                  setStatus("approved");
-                  setShowReason(false);
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                  status === "approved"
-                    ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
+    if (!rejectReason.trim()) {
+      alert("Please provide a rejection reason");
+      return;
+    }
+
+    // Document IDs contain underscore (photo_, aadhaar_, pan_)
+    // Payment IDs are numeric (just numbers)
+    const docIds = selectedItems.filter(id => String(id).includes("_"));
+    const paymentIds = selectedItems
+      .filter(id => !String(id).includes("_"))
+      .map(id => Number(id)); // Convert to number for API
+
+    setSubmitting(true);
+    await onReject(citizen.id, docIds, paymentIds, rejectReason);
+    setSubmitting(false);
+    onClose();
+  };
+
+  const getOverallStatus = () => {
+    if (citizen.verification_status === "approved" || citizen.verification_status === "verified") {
+      return { label: "Approved", color: "bg-green-500/20 text-green-400", icon: CheckCircle };
+    }
+    if (citizen.verification_status === "rejected") {
+      return { label: "Rejected", color: "bg-red-500/20 text-red-400", icon: XCircle };
+    }
+    return { label: "Pending", color: "bg-yellow-500/20 text-yellow-400", icon: Clock };
+  };
+
+  const overallStatus = getOverallStatus();
+  const StatusIcon = overallStatus.icon;
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" 
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="bg-gray-800 rounded-2xl w-full max-w-xl max-h-[90vh] border border-gray-700 shadow-2xl flex flex-col">
+          <div className="p-4 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+            <div>
+              <h3 className="text-xl font-bold text-white">Review Documents & Payments</h3>
+              <p className="text-gray-400 text-sm">{citizen.name}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${overallStatus.color} flex items-center gap-2`}>
+                <StatusIcon size={16} />
+                {overallStatus.label}
+              </span>
+              <button 
+                onClick={onClose} 
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
               >
-                <CheckCircle className="inline w-4 h-4 mr-1" /> Approve
-              </button>
-              <button
-                onClick={() => {
-                  setStatus("rejected");
-                  setShowReason(true);
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                  status === "rejected"
-                    ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <XCircle className="inline w-4 h-4 mr-1" /> Reject
-              </button>
-              <button
-                onClick={() => {
-                  setStatus("pending");
-                  setShowReason(false);
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                  status === "pending"
-                    ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <Clock className="inline w-4 h-4 mr-1" /> Pending
+                <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
           </div>
 
-          {showReason && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">Rejection Reason</label>
+          <div className="p-4 overflow-y-auto flex-1">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSelectAll}
+                  className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors cursor-pointer ${
+                    isAllSelected() 
+                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/50" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <Check size={14} />
+                  {isAllSelected() ? "Deselect All" : "Select All"}
+                </button>
+                <span className="text-gray-400 text-sm">
+                  Selected: {selectedItems.length} items
+                </span>
+              </div>
+            </div>
+
+            {/* Documents Section */}
+            {documents.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-amber-400 mb-3 flex items-center gap-2">
+                  <FileText size={16} /> Documents ({documents.length})
+                </h4>
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600 flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(doc.id)}
+                          onChange={() => toggleItem(doc.id)}
+                          className="w-4 h-4 rounded border-gray-500 text-amber-500 focus:ring-amber-500 cursor-pointer flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium text-sm truncate">
+                            {doc.document_key || doc.document_type || "Untitled"}
+                          </p>
+                          <p className="text-gray-400 text-xs capitalize">{doc.document_type || "Document"}</p>
+                        </div>
+                      </div>
+                      {doc.document_file && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewDocument(doc);
+                          }}
+                          className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer flex-shrink-0"
+                          title="Preview Document"
+                        >
+                          <Eye size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Payments Section */}
+            {payments.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-amber-400 mb-3 flex items-center gap-2">
+                  <DollarSign size={16} /> Payments ({payments.length})
+                </h4>
+                <div className="space-y-2">
+                  {payments.map((payment) => {
+                    const isWallet = payment.payment_method?.toLowerCase() === 'wallet';
+                    const hasImage = payment.payment_image && payment.payment_image.length > 0;
+                    
+                    return (
+                      <div key={payment.id} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600 flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.includes(payment.id)}
+                            onChange={() => toggleItem(payment.id)}
+                            className="w-4 h-4 rounded border-gray-500 text-amber-500 focus:ring-amber-500 cursor-pointer flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-white font-medium">₹{parseFloat(payment.amount || 0).toLocaleString()}</p>
+                              <span className="text-xs text-gray-400 capitalize">{payment.payment_method}</span>
+                              {isWallet && (
+                                <span className="text-xs text-green-400 bg-green-500/20 px-1.5 py-0.5 rounded">
+                                  Wallet
+                                </span>
+                              )}
+                              {!isWallet && hasImage && (
+                                <span className="text-xs text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded">
+                                  📷
+                                </span>
+                              )}
+                              {!isWallet && !hasImage && (
+                                <span className="text-xs text-gray-500 bg-gray-500/20 px-1.5 py-0.5 rounded">
+                                  No Image
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-400 text-xs">Citizen ID: {payment.citizen_id}</p>
+                            {payment.utr && (
+                              <p className="text-gray-400 text-xs font-mono truncate">UTR: {payment.utr}</p>
+                            )}
+                            <p className="text-gray-500 text-xs">Submitted: {new Date(payment.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        {/* Show Eye button for ANY payment that has an image */}
+                        {hasImage && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewPayment(payment);
+                            }}
+                            className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer flex-shrink-0"
+                            title="Preview Payment"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        )}
+                        {/* Show Wallet icon for wallet payments without image */}
+                        {isWallet && !hasImage && (
+                          <div className="p-1.5 text-green-400 flex-shrink-0" title="Wallet Payment">
+                            <Wallet size={18} />
+                          </div>
+                        )}
+                        {/* Show No Image icon for non-wallet payments without image */}
+                        {!isWallet && !hasImage && (
+                          <div className="p-1.5 text-gray-500 flex-shrink-0" title="No payment image">
+                            <ImageIcon size={18} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {documents.length === 0 && payments.length === 0 && (
+              <p className="text-gray-400 text-center py-8">No documents or payments to review</p>
+            )}
+
+            {/* Rejection Reason */}
+            <div className="mt-4">
+              <label className="text-sm font-medium text-gray-300 block mb-2">Rejection Reason (for rejected items)</label>
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Enter rejection reason..."
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-amber-500 text-white resize-none"
-                rows={3}
+                rows={2}
               />
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="p-6 border-t border-gray-700 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-5 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {submitting ? "Updating..." : "Update Status"}
-          </button>
+          <div className="p-4 border-t border-gray-700 flex justify-between items-center flex-shrink-0">
+            <span className="text-gray-400 text-sm">
+              {selectedItems.length} item(s)
+            </span>
+            <div className="flex gap-3">
+              <button
+                onClick={handleReject}
+                disabled={submitting || selectedItems.length === 0}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {submitting ? <Loader size={16} className="animate-spin" /> : <XCircle size={16} />}
+                Reject
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={submitting || selectedItems.length === 0}
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {submitting ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                Approve
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Preview Modals rendered outside with higher z-index */}
+      {previewDocument && (
+        <DocumentPreviewModal
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
+        />
+      )}
+
+      {previewPayment && (
+        <PaymentPreviewModal
+          payment={previewPayment}
+          onClose={() => setPreviewPayment(null)}
+        />
+      )}
+    </>
   );
 };
 
@@ -308,26 +542,19 @@ const CitizenDocuments = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [expandedCitizenId, setExpandedCitizenId] = useState(null);
-  const [previewDocument, setPreviewDocument] = useState(null);
-  const [previewPayment, setPreviewPayment] = useState(null);
-  const [statusModal, setStatusModal] = useState(null);
-  const [processingPaymentId, setProcessingPaymentId] = useState(null);
-  const [processingDocId, setProcessingDocId] = useState(null);
+  const [reviewModal, setReviewModal] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
-      // Fetch citizens
       const citizensRes = await fetch(`${API_BASE}/citizens/all`);
       const citizensData = await citizensRes.json();
 
-      // Fetch documents - this returns citizen data with images
       const docsRes = await fetch(`${API_BASE}/citizen-documents`);
       const docsData = await docsRes.json();
 
-      // Fetch payments
       const paysRes = await fetch(`${API_BASE}/citizen-payment/admin/all`);
       const paysData = await paysRes.json();
 
@@ -336,11 +563,8 @@ const CitizenDocuments = () => {
       }
       
       if (docsData.success) {
-        // The data is an array of citizens with their document images
-        // We need to transform this into document objects
         const transformedDocs = [];
         docsData.data.forEach(citizen => {
-          // Add photo as a document
           if (citizen.photo) {
             transformedDocs.push({
               id: `photo_${citizen.id}`,
@@ -357,8 +581,6 @@ const CitizenDocuments = () => {
               citizen_name: citizen.name,
             });
           }
-          
-          // Add Aadhaar card as a document
           if (citizen.aadhaar_card_image) {
             transformedDocs.push({
               id: `aadhaar_${citizen.id}`,
@@ -375,8 +597,6 @@ const CitizenDocuments = () => {
               citizen_name: citizen.name,
             });
           }
-          
-          // Add PAN card as a document
           if (citizen.pan_card_image) {
             transformedDocs.push({
               id: `pan_${citizen.id}`,
@@ -398,10 +618,18 @@ const CitizenDocuments = () => {
       }
       
       if (paysData.success) {
-        setPayments(paysData.payments || []);
+        const paymentsData = paysData.payments || [];
+        const uniquePayments = [];
+        const seenIds = new Set();
+        for (const payment of paymentsData) {
+          if (!seenIds.has(payment.id)) {
+            seenIds.add(payment.id);
+            uniquePayments.push(payment);
+          }
+        }
+        setPayments(uniquePayments);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
       setError("Failed to fetch data. Please check your connection.");
     } finally {
       setLoading(false);
@@ -412,186 +640,32 @@ const CitizenDocuments = () => {
     fetchData();
   }, []);
 
-  const updateCitizenStatus = async (id, status, reason) => {
-    try {
-      const response = await fetch(`${API_BASE}/citizens/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verification_status: status, rejection_reason: reason }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSuccessMessage(`Citizen ${status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'pending'} successfully!`);
-        setTimeout(() => setSuccessMessage(""), 3000);
-        fetchData();
-      } else {
-        setError(data.message || "Failed to update status");
-        setTimeout(() => setError(""), 3000);
-      }
-    } catch (error) {
-      console.error("Error updating citizen:", error);
-      setError("Failed to update citizen status");
-      setTimeout(() => setError(""), 3000);
-    }
-  };
-
-  const updateDocumentStatus = async (id, status, reason) => {
-    // Extract citizen ID from document ID (e.g., "photo_5" -> 5)
-    const citizenId = id.split('_')[1];
-    setProcessingDocId(id);
-    try {
-      // Update the citizen's verification status since documents are linked to citizen
-      const response = await fetch(`${API_BASE}/citizens/${citizenId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verification_status: status, rejection_reason: reason }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSuccessMessage(`Document ${status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'pending'} successfully!`);
-        setTimeout(() => setSuccessMessage(""), 3000);
-        fetchData();
-      } else {
-        setError(data.message || "Failed to update document");
-        setTimeout(() => setError(""), 3000);
-      }
-    } catch (error) {
-      console.error("Error updating document:", error);
-      setError("Failed to update document status");
-      setTimeout(() => setError(""), 3000);
-    } finally {
-      setProcessingDocId(null);
-    }
-  };
-
-const updatePaymentStatus = async (id, status, reason) => {
-  setProcessingPaymentId(id);
-
-  try {
-    let endpoint = `${API_BASE}/citizen-payment/admin/`;
-
-    if (status === "approved") {
-      endpoint += `approve/${id}`;
-    } else if (status === "rejected") {
-      endpoint += `reject/${id}`;
-    } else {
-      // If status is "pending", we need to revert - check if there's a revert endpoint
-      // If not, we might need to handle this differently
-      setProcessingPaymentId(null);
-      setError("Revert to pending is not supported");
-      setTimeout(() => setError(""), 3000);
-      return;
-    }
-
-    const response = await fetch(endpoint, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        admin_id: 1,
-        rejection_reason: reason,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // Find the payment that was updated
-      const updatedPayment = payments.find(p => p.id === id);
-      
-      // ✅ Update payment state immediately
-      setPayments(prevPayments => {
-        const updatedPayments = prevPayments.map(payment => {
-          if (payment.id === id) {
-            let newStatus = "PENDING";
-            if (status === "approved") newStatus = "APPROVED";
-            else if (status === "rejected") newStatus = "REJECTED";
-            
-            return {
-              ...payment,
-              status: newStatus,
-              approved_at: status === "approved" ? new Date().toISOString() : payment.approved_at,
-              rejection_reason: status === "rejected" ? reason : null,
-            };
-          }
-          return payment;
-        });
-        return updatedPayments;
-      });
-
-      // 🔥 Also update citizen verification status if payment is approved
-      if (status === "approved" && updatedPayment) {
-        const citizenId = updatedPayment.citizen_id || updatedPayment.citizen_table_id;
-        
-        // Update citizen status locally
-        setCitizens(prevCitizens => {
-          return prevCitizens.map(citizen => {
-            if (citizen.id === citizenId) {
-              return { ...citizen, verification_status: "verified" };
-            }
-            return citizen;
-          });
-        });
-
-        // Update document statuses locally
-        setDocuments(prevDocs => {
-          return prevDocs.map(doc => {
-            if (doc.citizen_id === citizenId) {
-              return { ...doc, status: "verified" };
-            }
-            return doc;
-          });
-        });
-      }
-
-      // ✅ Force a re-fetch in background to ensure consistency
-      // This will update any other data that might have changed
-      setTimeout(() => {
-        fetchData();
-      }, 500);
-
-      setSuccessMessage(
-        `Payment ${status === "approved" ? "approved" : status === "rejected" ? "rejected" : "updated"} successfully!`
-      );
-
-      setTimeout(() => setSuccessMessage(""), 3000);
-
-    } else {
-      setError(data.message || "Failed to update payment");
-      setTimeout(() => setError(""), 3000);
-    }
-
-  } catch (error) {
-    console.error("Error updating payment:", error);
-    setError("Failed to update payment status");
-    setTimeout(() => setError(""), 3000);
-  } finally {
-    setProcessingPaymentId(null);
-  }
-};
-
   const getDocumentsForCitizen = (citizenId) => {
     return documents.filter((doc) => doc.citizen_id === citizenId);
   };
 
   const getPaymentsForCitizen = (citizenId) => {
-    return payments.filter((pay) => pay.citizen_id === citizenId || pay.citizen_table_id === citizenId);
-  };
-
-  const getDocumentTypeIcon = (type) => {
-    if (!type) return <FileText size={14} className="text-amber-400" />;
-    const lowerType = type.toLowerCase();
-    if (lowerType.includes("photo")) {
-      return <User size={14} className="text-blue-400" />;
+    const citizen = citizens.find(c => c.id === citizenId);
+    if (!citizen) {
+      return [];
     }
-    if (lowerType.includes("aadhaar")) {
-      return <CreditCard size={14} className="text-orange-400" />;
+    
+    // Use the citizen's user_id to match payments (citizen_payment_history.citizen_id references users.id)
+    const userId = citizen.user_id || citizenId;
+    
+    const filtered = payments.filter((pay) => {
+      return pay.citizen_id === userId;
+    });
+    
+    const uniquePayments = [];
+    const seenIds = new Set();
+    for (const payment of filtered) {
+      if (!seenIds.has(payment.id)) {
+        seenIds.add(payment.id);
+        uniquePayments.push(payment);
+      }
     }
-    if (lowerType.includes("pan")) {
-      return <File size={14} className="text-purple-400" />;
-    }
-    return <FileText size={14} className="text-amber-400" />;
+    return uniquePayments;
   };
 
   const filteredCitizens = citizens.filter((citizen) => {
@@ -610,7 +684,7 @@ const updatePaymentStatus = async (id, status, reason) => {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status, citizen = null) => {
+  const getStatusBadge = (status) => {
     const statusMap = {
       "approved": { icon: CheckCircle, color: "green", label: "Approved", bg: "bg-green-500/20", text: "text-green-400" },
       "verified": { icon: CheckCircle, color: "green", label: "Verified", bg: "bg-green-500/20", text: "text-green-400" },
@@ -620,18 +694,6 @@ const updatePaymentStatus = async (id, status, reason) => {
     const s = statusMap[status] || statusMap.pending;
     const Icon = s.icon;
     
-    if (citizen) {
-      return (
-        <button
-          onClick={() => setStatusModal(citizen)}
-          className={`px-2 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text} flex items-center gap-1 w-fit hover:ring-2 hover:ring-amber-500/50 transition-all cursor-pointer`}
-          title="Click to change status"
-        >
-          <Icon size={12} /> {s.label}
-        </button>
-      );
-    }
-    
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text} flex items-center gap-1 w-fit`}>
         <Icon size={12} /> {s.label}
@@ -639,30 +701,93 @@ const updatePaymentStatus = async (id, status, reason) => {
     );
   };
 
- const getPaymentStatusBadge = (status) => {
-  // Normalize status to uppercase
-  const normalizedStatus = status ? status.toUpperCase() : "PENDING";
-  
-  const statusMap = {
-    "APPROVED": { icon: CheckCircle, color: "green", label: "Approved", bg: "bg-green-500/20", text: "text-green-400" },
-    "REJECTED": { icon: XCircle, color: "red", label: "Rejected", bg: "bg-red-500/20", text: "text-red-400" },
-    "PENDING": { icon: Clock, color: "yellow", label: "Waiting for Approval", bg: "bg-yellow-500/20", text: "text-yellow-400" },
-  };
-  
-  const s = statusMap[normalizedStatus] || statusMap.PENDING;
-  const Icon = s.icon;
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text} flex items-center gap-1 w-fit`}>
-      <Icon size={10} /> {s.label}
-    </span>
-  );
-};
+  const handleBulkApprove = async (citizenId, docIds, paymentIds) => {
+    setProcessing(true);
+    try {
+      const res = await fetch(`${API_BASE}/citizens/${citizenId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          verification_status: "approved",
+          rejection_reason: null,
+        }),
+      });
 
-  const getPaymentMethodIcon = (method) => {
-    if (method === "qr") {
-      return <QrCode size={14} className="text-amber-400" />;
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update citizen");
+      }
+
+      for (const paymentId of paymentIds) {
+        try {
+          await fetch(`${API_BASE}/citizen-payment/admin/approve/${paymentId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ admin_id: 1 }),
+          });
+        } catch (payErr) {
+          console.error(`Error approving payment ${paymentId}:`, payErr);
+        }
+      }
+
+      setSuccessMessage(`Successfully approved ${docIds.length + paymentIds.length} items!`);
+      setTimeout(() => setSuccessMessage(""), 3000);
+      fetchData();
+    } catch (error) {
+      setError("Failed to approve items");
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setProcessing(false);
     }
-    return <Wallet size={14} className="text-blue-400" />;
+  };
+
+  const handleBulkReject = async (citizenId, docIds, paymentIds, reason) => {
+    setProcessing(true);
+    try {
+      const res = await fetch(`${API_BASE}/citizens/${citizenId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          verification_status: "rejected",
+          rejection_reason: reason,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update citizen");
+      }
+
+      for (const paymentId of paymentIds) {
+        try {
+          await fetch(`${API_BASE}/citizen-payment/admin/reject/${paymentId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              admin_id: 1, 
+              rejection_reason: reason 
+            }),
+          });
+        } catch (payErr) {
+          console.error(`Error rejecting payment ${paymentId}:`, payErr);
+        }
+      }
+
+      setSuccessMessage(`Successfully rejected ${docIds.length + paymentIds.length} items!`);
+      setTimeout(() => setSuccessMessage(""), 3000);
+      fetchData();
+    } catch (error) {
+      setError("Failed to reject items");
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const stats = {
@@ -802,15 +927,13 @@ const updatePaymentStatus = async (id, status, reason) => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Aadhaar</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Documents</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Payments</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {filteredCitizens.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center px-4 py-8 text-gray-400">
+                    <td colSpan={7} className="text-center px-4 py-8 text-gray-400">
                       No citizens found
                     </td>
                   </tr>
@@ -818,302 +941,39 @@ const updatePaymentStatus = async (id, status, reason) => {
                   filteredCitizens.map((citizen) => {
                     const citizenDocuments = getDocumentsForCitizen(citizen.id);
                     const citizenPayments = getPaymentsForCitizen(citizen.id);
-                    const isExpanded = expandedCitizenId === citizen.id;
                     
                     return (
-                      <React.Fragment key={citizen.id}>
-                        <tr className="hover:bg-gray-800/50 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-amber-400">{citizen.id}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{citizen.name || "N/A"}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{citizen.nominee_name || citizen.nominee || "N/A"}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{citizen.phone || "N/A"}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
-                            {citizen.aadhaar_number ? `XXXX-XXXX-${citizen.aadhaar_number.slice(-4)}` : "N/A"}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {getStatusBadge(citizen.verification_status, citizen)}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
-                            {citizenDocuments.length > 0 ? (
-                              <span className="text-amber-400 font-semibold">{citizenDocuments.length}</span>
-                            ) : (
-                              <span className="text-gray-500">0</span>
+                      <tr key={citizen.id} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-amber-400">{citizen.id}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{citizen.name || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{citizen.nominee_name || citizen.nominee || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{citizen.phone || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                          {citizen.aadhaar_number ? `XXXX-XXXX-${citizen.aadhaar_number.slice(-4)}` : "N/A"}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {getStatusBadge(citizen.verification_status)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <button
+                            onClick={() => setReviewModal({ 
+                              citizen, 
+                              documents: citizenDocuments, 
+                              payments: citizenPayments 
+                            })}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                            title="Review Documents & Payments"
+                          >
+                            <Eye size={14} />
+                            View All
+                            {citizenDocuments.length + citizenPayments.length > 0 && (
+                              <span className="ml-1 bg-amber-600 px-1.5 py-0.5 rounded text-xs">
+                                {citizenDocuments.length + citizenPayments.length}
+                              </span>
                             )}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
-                            {citizenPayments.length > 0 ? (
-                              <span className="text-amber-400 font-semibold">{citizenPayments.length}</span>
-                            ) : (
-                              <span className="text-gray-500">0</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <button
-                              onClick={() => setExpandedCitizenId(isExpanded ? null : citizen.id)}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                isExpanded 
-                                  ? "text-amber-400 bg-amber-500/20" 
-                                  : "text-blue-400 hover:bg-blue-500/20"
-                              }`}
-                              title={isExpanded ? "Hide Documents & Payments" : "View Documents & Payments"}
-                            >
-                              <FileText size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                        
-                        {/* Expanded Row */}
-                        {isExpanded && (
-                          <tr className="bg-gray-900/50">
-                            <td colSpan={9} className="px-4 py-4">
-                              <div className="space-y-6">
-                                {/* Documents Section */}
-                                <div>
-                                  <h4 className="text-md font-semibold text-amber-400 mb-3 flex items-center gap-2">
-                                    <FileText size={16} /> Documents ({citizenDocuments.length})
-                                  </h4>
-                                  {citizenDocuments.length === 0 ? (
-                                    <p className="text-gray-500 text-sm">No documents uploaded</p>
-                                  ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                      {citizenDocuments.map((doc) => {
-                                        const isProcessing = processingDocId === doc.id;
-                                        const docStatus = doc.status || "pending";
-                                        
-                                        return (
-                                          <div key={doc.id} className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-amber-500/30 transition-colors">
-                                            <div className="flex items-start justify-between mb-2">
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5">
-                                                  {getDocumentTypeIcon(doc.document_type)}
-                                                  <p className="text-white font-medium text-sm truncate">
-                                                    {doc.document_key || doc.document_type || "Untitled"}
-                                                  </p>
-                                                </div>
-                                                <p className="text-gray-500 text-xs capitalize">{doc.document_type || "Document"}</p>
-                                                {doc.document_name && (
-                                                  <p className="text-gray-500 text-xs truncate">{doc.document_name}</p>
-                                                )}
-                                              </div>
-                                              {doc.document_file && (
-                                                <button
-                                                  onClick={() => setPreviewDocument(doc)}
-                                                  className="p-1 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer flex-shrink-0"
-                                                  title="Preview"
-                                                >
-                                                  <Eye size={14} />
-                                                </button>
-                                              )}
-                                            </div>
-                                            <div className="flex items-center justify-between mt-2">
-                                              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                                docStatus === "approved" || docStatus === "verified"
-                                                  ? "bg-green-500/20 text-green-400"
-                                                  : docStatus === "rejected"
-                                                  ? "bg-red-500/20 text-red-400"
-                                                  : "bg-yellow-500/20 text-yellow-400"
-                                              }`}>
-                                                {docStatus || "pending"}
-                                              </span>
-                                              
-                                              {/* Always show Approve/Reject buttons for documents */}
-                                              <div className="flex gap-1">
-                                                <button
-                                                  onClick={() => {
-                                                    if (window.confirm(docStatus === "approved" ? "Revert this document to pending?" : "Approve this document?")) {
-                                                      updateDocumentStatus(doc.id, docStatus === "approved" ? "pending" : "approved");
-                                                    }
-                                                  }}
-                                                  disabled={isProcessing}
-                                                  className={`p-1 rounded transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    docStatus === "approved" 
-                                                      ? "text-yellow-400 hover:bg-yellow-500/20" 
-                                                      : "text-green-400 hover:bg-green-500/20"
-                                                  }`}
-                                                  title={docStatus === "approved" ? "Revert to Pending" : "Approve Document"}
-                                                >
-                                                  {isProcessing ? (
-                                                    <Loader size={14} className="animate-spin" />
-                                                  ) : docStatus === "approved" ? (
-                                                    <Clock size={14} />
-                                                  ) : (
-                                                    <CheckCircle size={14} />
-                                                  )}
-                                                </button>
-                                                <button
-                                                  onClick={() => {
-                                                    if (docStatus === "rejected") {
-                                                      if (window.confirm("Revert this document to pending?")) {
-                                                        updateDocumentStatus(doc.id, "pending");
-                                                      }
-                                                      return;
-                                                    }
-                                                    const reason = prompt("Enter rejection reason:");
-                                                    if (reason !== null) {
-                                                      if (window.confirm(docStatus === "rejected" ? "Revert to pending?" : "Reject this document?")) {
-                                                        updateDocumentStatus(doc.id, docStatus === "rejected" ? "pending" : "rejected", reason);
-                                                      }
-                                                    }
-                                                  }}
-                                                  disabled={isProcessing}
-                                                  className={`p-1 rounded transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    docStatus === "rejected"
-                                                      ? "text-yellow-400 hover:bg-yellow-500/20"
-                                                      : "text-red-400 hover:bg-red-500/20"
-                                                  }`}
-                                                  title={docStatus === "rejected" ? "Revert to Pending" : "Reject Document"}
-                                                >
-                                                  {isProcessing ? (
-                                                    <Loader size={14} className="animate-spin" />
-                                                  ) : docStatus === "rejected" ? (
-                                                    <Clock size={14} />
-                                                  ) : (
-                                                    <XCircle size={14} />
-                                                  )}
-                                                </button>
-                                              </div>
-                                            </div>
-                                            {doc.rejection_reason && docStatus === "rejected" && (
-                                              <p className="text-xs text-red-400 mt-2 truncate">Reason: {doc.rejection_reason}</p>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Payments Section */}
-                                <div>
-                                  <h4 className="text-md font-semibold text-amber-400 mb-3 flex items-center gap-2">
-                                    <DollarSign size={16} /> Payments ({citizenPayments.length})
-                                  </h4>
-                                  {citizenPayments.length === 0 ? (
-                                    <p className="text-gray-500 text-sm">No payments recorded</p>
-                                  ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {citizenPayments.map((payment) => {
-                                        const paymentStatus = payment.status || "PENDING";
-                                        const isProcessing = processingPaymentId === payment.id;
-                                        
-                                        return (
-                                          <div key={payment.id} className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-amber-500/30 transition-colors">
-                                            <div className="flex items-start justify-between mb-2">
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                  <p className="text-white font-medium">₹{parseFloat(payment.amount || 0).toLocaleString()}</p>
-                                                  <span className="flex items-center gap-1 text-xs text-gray-400">
-                                                    {getPaymentMethodIcon(payment.payment_method)}
-                                                    <span className="capitalize">{payment.payment_method}</span>
-                                                  </span>
-                                                </div>
-                                                {payment.utr && (
-                                                  <p className="text-gray-500 text-xs font-mono mt-1 truncate">UTR: {payment.utr}</p>
-                                                )}
-                                                <p className="text-gray-500 text-xs">Submitted: {new Date(payment.created_at).toLocaleDateString()}</p>
-                                                {payment.approved_at && paymentStatus === "APPROVED" && (
-                                                  <p className="text-green-400 text-xs">Approved: {new Date(payment.approved_at).toLocaleString()}</p>
-                                                )}
-                                                {payment.rejection_reason && paymentStatus === "REJECTED" && (
-                                                  <p className="text-red-400 text-xs mt-1 truncate">Reason: {payment.rejection_reason}</p>
-                                                )}
-                                              </div>
-                                              {(payment.payment_image || payment.payment_method === "qr") && (
-                                                <button
-                                                  onClick={() => setPreviewPayment(payment)}
-                                                  className="p-1 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer flex-shrink-0"
-                                                  title="View Payment Details"
-                                                >
-                                                  {payment.payment_image ? (
-                                                    <ImageIcon size={16} />
-                                                  ) : (
-                                                    <QrCode size={16} />
-                                                  )}
-                                                </button>
-                                              )}
-                                            </div>
-                                            
-                                            <div className="flex items-center justify-between mt-2">
-                                              {getPaymentStatusBadge(paymentStatus)}
-                                              
-                                              {/* Always show Approve/Reject buttons for payments */}
-                                              <div className="flex gap-1">
-                                                <button
-                                                  onClick={() => {
-                                                    if (paymentStatus === "APPROVED") {
-                                                      if (window.confirm("Revert this payment to pending?")) {
-                                                        updatePaymentStatus(payment.id, "pending");
-                                                      }
-                                                      return;
-                                                    }
-                                                    if (citizen.verification_status !== "approved" && citizen.verification_status !== "verified") {
-                                                      alert("❌ Cannot approve payment.\n\nPlease ensure:\n1. Citizen is approved/verified first");
-                                                      return;
-                                                    }
-                                                    if (window.confirm(`Approve this ${payment.payment_method} payment?`)) {
-                                                      updatePaymentStatus(payment.id, "approved");
-                                                    }
-                                                  }}
-                                                  disabled={isProcessing}
-                                                  className={`p-1 rounded transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    paymentStatus === "APPROVED"
-                                                      ? "text-yellow-400 hover:bg-yellow-500/20"
-                                                      : "text-green-400 hover:bg-green-500/20"
-                                                  }`}
-                                                  title={paymentStatus === "APPROVED" ? "Revert to Pending" : `Approve ${payment.payment_method} Payment`}
-                                                >
-                                                  {isProcessing ? (
-                                                    <Loader size={14} className="animate-spin" />
-                                                  ) : paymentStatus === "APPROVED" ? (
-                                                    <Clock size={14} />
-                                                  ) : (
-                                                    <CheckCircle size={14} />
-                                                  )}
-                                                </button>
-                                                <button
-                                                  onClick={() => {
-                                                    if (paymentStatus === "REJECTED") {
-                                                      if (window.confirm("Revert this payment to pending?")) {
-                                                        updatePaymentStatus(payment.id, "pending");
-                                                      }
-                                                      return;
-                                                    }
-                                                    const reason = prompt("Enter rejection reason:");
-                                                    if (reason !== null) {
-                                                      if (window.confirm(`Reject this ${payment.payment_method} payment?`)) {
-                                                        updatePaymentStatus(payment.id, "rejected", reason);
-                                                      }
-                                                    }
-                                                  }}
-                                                  disabled={isProcessing}
-                                                  className={`p-1 rounded transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    paymentStatus === "REJECTED"
-                                                      ? "text-yellow-400 hover:bg-yellow-500/20"
-                                                      : "text-red-400 hover:bg-red-500/20"
-                                                  }`}
-                                                  title={paymentStatus === "REJECTED" ? "Revert to Pending" : `Reject ${payment.payment_method} Payment`}
-                                                >
-                                                  {isProcessing ? (
-                                                    <Loader size={14} className="animate-spin" />
-                                                  ) : paymentStatus === "REJECTED" ? (
-                                                    <Clock size={14} />
-                                                  ) : (
-                                                    <XCircle size={14} />
-                                                  )}
-                                                </button>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })
                 )}
@@ -1138,25 +998,14 @@ const updatePaymentStatus = async (id, status, reason) => {
         )}
 
         {/* Modals */}
-        {previewDocument && (
-          <DocumentPreviewModal
-            document={previewDocument}
-            onClose={() => setPreviewDocument(null)}
-          />
-        )}
-
-        {previewPayment && (
-          <PaymentPreviewModal
-            payment={previewPayment}
-            onClose={() => setPreviewPayment(null)}
-          />
-        )}
-
-        {statusModal && (
-          <StatusChangeModal
-            citizen={statusModal}
-            onClose={() => setStatusModal(null)}
-            onUpdate={updateCitizenStatus}
+        {reviewModal && (
+          <ReviewModal
+            citizen={reviewModal.citizen}
+            documents={reviewModal.documents}
+            payments={reviewModal.payments}
+            onClose={() => setReviewModal(null)}
+            onApprove={handleBulkApprove}
+            onReject={handleBulkReject}
           />
         )}
       </div>

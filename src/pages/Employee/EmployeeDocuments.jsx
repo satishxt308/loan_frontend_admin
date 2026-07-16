@@ -23,223 +23,522 @@ import {
   Banknote,
   UserCheck,
   Globe,
+  Check,
+  Loader,
+  IdCard,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
-// Employee Details Modal
-const EmployeeModal = ({ employee, onClose, onUpdateStatus }) => {
-  const [status, setStatus] = useState(employee?.status || "pending");
+// Employee Details Modal with Documents
+const EmployeeDetailsModal = ({ 
+  employee, 
+  documents, 
+  onClose, 
+  onBulkApprove, 
+  onBulkReject, 
+  onGenerateId,
+  onUpdateEmployeeStatus,
+  onRefresh,
+  onEmployeeUpdate
+}) => {
+  const [selectedItems, setSelectedItems] = useState([]);
   const [rejectReason, setRejectReason] = useState("");
-  const [showReason, setShowReason] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [generatingId, setGeneratingId] = useState(false);
+  const [employeeStatus, setEmployeeStatus] = useState(employee?.status || "pending");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [localDocuments, setLocalDocuments] = useState(documents || []);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  if (!employee) return null;
+  // Update local state when props change
+  useEffect(() => {
+    if (employee) {
+      setEmployeeStatus(employee.status || "pending");
+    }
+    setLocalDocuments(documents || []);
+  }, [employee, documents, refreshKey]);
 
-  const handleSubmit = async () => {
-    if (status === "rejected" && !rejectReason.trim()) {
+  // Check if all documents are approved
+  const allDocsApproved = localDocuments.length > 0 && localDocuments.every(doc => doc.status === "approved");
+  const canGenerateId = employeeStatus === "approved" && allDocsApproved && !employee?.emp_card_verified;
+
+  const allItemIds = localDocuments.map(doc => doc.id);
+
+  const handleSelectAll = () => {
+    const allSelected = allItemIds.every(id => selectedItems.includes(id));
+    if (allSelected) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(allItemIds);
+    }
+  };
+
+  const toggleItem = (id) => {
+    setSelectedItems(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const isAllSelected = () => {
+    return allItemIds.length > 0 && allItemIds.every(id => selectedItems.includes(id));
+  };
+
+  const handleApprove = async () => {
+    if (selectedItems.length === 0) {
+      alert("Please select at least one document to approve");
+      return;
+    }
+    setSubmitting(true);
+    const success = await onBulkApprove(employee.id, selectedItems);
+    if (success) {
+      setLocalDocuments(prev => 
+        prev.map(doc => 
+          selectedItems.includes(doc.id) 
+            ? { ...doc, status: "approved" } 
+            : doc
+        )
+      );
+      setSelectedItems([]);
+      await onRefresh();
+      setRefreshKey(prev => prev + 1);
+    }
+    setSubmitting(false);
+  };
+
+  const handleReject = async () => {
+    if (selectedItems.length === 0) {
+      alert("Please select at least one document to reject");
+      return;
+    }
+    if (!rejectReason.trim()) {
       alert("Please provide a rejection reason");
       return;
     }
     setSubmitting(true);
-    await onUpdateStatus(employee.id, status, rejectReason);
+    const success = await onBulkReject(employee.id, selectedItems, rejectReason);
+    if (success) {
+      setLocalDocuments(prev => 
+        prev.map(doc => 
+          selectedItems.includes(doc.id) 
+            ? { ...doc, status: "rejected", reason: rejectReason } 
+            : doc
+        )
+      );
+      setSelectedItems([]);
+      setRejectReason("");
+      await onRefresh();
+      setRefreshKey(prev => prev + 1);
+    }
     setSubmitting(false);
-    onClose();
   };
 
-  const Section = ({ title, icon: Icon, children }) => (
-    <div className="mb-6">
-      <h3 className="text-lg font-semibold text-amber-400 mb-4 flex items-center gap-2">
-        <Icon size={18} /> {title}
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {children}
-      </div>
-    </div>
-  );
+  const handleGenerateId = async () => {
+    setGeneratingId(true);
+    const success = await onGenerateId(employee.id);
+    if (success) {
+      await onRefresh();
+      setRefreshKey(prev => prev + 1);
+    }
+    setGeneratingId(false);
+  };
 
-  const InfoCard = ({ label, value, highlight = false }) => (
-    <div className="bg-gray-700/30 rounded-lg p-3">
-      <label className="text-xs text-gray-400 uppercase block mb-1">{label}</label>
-      <p className={`${highlight ? "text-amber-400 font-semibold" : "text-white"} break-words`}>
-        {value || "N/A"}
-      </p>
-    </div>
-  );
+  // Handle employee status change with checkbox
+  const handleEmployeeStatusChange = async (newStatus) => {
+    setUpdatingStatus(true);
+    try {
+      if (employeeStatus === newStatus) {
+        const result = await onUpdateEmployeeStatus(employee.id, "pending", null);
+        if (result) {
+          setEmployeeStatus("pending");
+          await onRefresh();
+          setRefreshKey(prev => prev + 1);
+          if (onEmployeeUpdate) {
+            const updatedEmployee = await onEmployeeUpdate(employee.id);
+            if (updatedEmployee) {
+              setEmployeeStatus(updatedEmployee.status || "pending");
+            }
+          }
+        }
+      } else {
+        if (newStatus === "rejected") {
+          const reason = prompt("Please enter rejection reason:");
+          if (reason !== null && reason.trim()) {
+            const result = await onUpdateEmployeeStatus(employee.id, newStatus, reason.trim());
+            if (result) {
+              setEmployeeStatus(newStatus);
+              await onRefresh();
+              setRefreshKey(prev => prev + 1);
+              if (onEmployeeUpdate) {
+                const updatedEmployee = await onEmployeeUpdate(employee.id);
+                if (updatedEmployee) {
+                  setEmployeeStatus(updatedEmployee.status || "pending");
+                }
+              }
+            }
+          } else if (reason !== null) {
+            alert("Rejection reason is required");
+          }
+        } else {
+          const result = await onUpdateEmployeeStatus(employee.id, newStatus, null);
+          if (result) {
+            setEmployeeStatus(newStatus);
+            await onRefresh();
+            setRefreshKey(prev => prev + 1);
+            if (onEmployeeUpdate) {
+              const updatedEmployee = await onEmployeeUpdate(employee.id);
+              if (updatedEmployee) {
+                setEmployeeStatus(updatedEmployee.status || "pending");
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-gray-800 rounded-2xl w-full max-w-4xl border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
-          <div className="flex justify-between items-center">
+  const DocumentPreviewModal = ({ document, onClose }) => {
+    if (!document) return null;
+
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="bg-gray-800 rounded-2xl w-[500px] max-w-xl border border-gray-700 shadow-2xl">
+          <div className="p-2 border-b border-gray-700 flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-white">Employee Details</h2>
-              <p className="text-gray-400 text-sm mt-1">ID: {employee.id}</p>
+              <h3 className="text-lg font-semibold text-white">{document.document_key || "Document Preview"}</h3>
+              <p className="text-gray-400 text-sm">{document.document_type}</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
+            <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition-colors cursor-pointer">
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
-        </div>
-        
-        <div className="p-6 space-y-6">
-          <Section title="Personal Information" icon={User}>
-            <InfoCard label="Full Name" value={employee.full_name} highlight />
-            <InfoCard label="Email" value={employee.email} />
-            <InfoCard label="Phone" value={employee.phone} />
-            <InfoCard label="Employee ID" value={employee.employee_id} />
-          </Section>
-
-          <Section title="Address & IDs" icon={MapPin}>
-  <InfoCard label="Full Address" value={employee.full_address} />
-  <InfoCard label="Aadhaar Number" value={employee.aadhaar_number} />
-  <InfoCard label="PAN Number" value={employee.pan_number} />
-  <InfoCard label="Referral Source" value={employee.referral_source} highlight />
-</Section>
-
-          <Section title="Timeline" icon={Calendar}>
-            <InfoCard label="Submitted Date" value={new Date(employee.submitted_date).toLocaleString()} />
-            {/* <InfoCard label="Last Updated" value={new Date(employee.last_updated).toLocaleString()} /> */}
-          </Section>
-
-          <div className="border-t border-gray-700 pt-6">
-            <h3 className="text-lg font-semibold text-amber-400 mb-4">Update Status</h3>
-            <div className="flex flex-wrap gap-3 mb-4">
-              <button
-                onClick={() => {
-                  setStatus("approved");
-                  setShowReason(false);
-                }}
-                className={`px-5 py-2 rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
-                  status === "approved"
-                    ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <CheckCircle size={18} /> Approve
-              </button>
-              <button
-                onClick={() => {
-                  setStatus("rejected");
-                  setShowReason(true);
-                }}
-                className={`px-5 py-2 rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
-                  status === "rejected"
-                    ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <XCircle size={18} /> Reject
-              </button>
-              <button
-                onClick={() => {
-                  setStatus("pending");
-                  setShowReason(false);
-                }}
-                className={`px-5 py-2 rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
-                  status === "pending"
-                    ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <Clock size={18} /> Pending
-              </button>
-            </div>
-            {showReason && (
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">Rejection Reason</label>
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Enter rejection reason..."
-                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-amber-500 text-white"
-                  rows={3}
+          <div className="p-0 flex justify-center items-center min-h-[350px] max-h-[50vh] overflow-auto">
+            {document.document_file ? (
+              document.mime_type?.startsWith("image/") ? (
+                <img 
+                  src={document.document_file} 
+                  alt={document.document_name}
+                  className="max-w-full max-h-[50vh] object-contain rounded-lg"
                 />
+              ) : document.mime_type === "application/pdf" ? (
+                <iframe 
+                  src={document.document_file} 
+                  className="w-full h-[60vh] rounded-lg"
+                  title={document.document_name}
+                />
+              ) : (
+                <div className="text-center text-gray-400">
+                  <FileText size={48} className="mx-auto mb-4" />
+                  <p>Preview not available for this file type</p>
+                  <a 
+                    href={document.document_file} 
+                    download 
+                    className="mt-4 inline-flex items-center gap-2 text-amber-400 hover:text-amber-300"
+                  >
+                    <Download size={16} /> Download File
+                  </a>
+                </div>
+              )
+            ) : (
+              <div className="text-center text-gray-400">
+                <AlertCircle size={48} className="mx-auto mb-4" />
+                <p>No file available</p>
               </div>
             )}
           </div>
         </div>
-        
-        <div className="p-6 border-t border-gray-700 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-5 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {submitting ? "Processing..." : "Submit"}
-          </button>
-        </div>
       </div>
-    </div>
-  );
-};
-
-// Document Preview Modal
-const DocumentPreviewModal = ({ document, onClose }) => {
-  if (!document) return null;
+    );
+  };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl">
-        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-semibold text-white">{document.document_key || "Document Preview"}</h3>
-            <p className="text-gray-400 text-sm">{document.document_type}</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-        <div className="p-4 flex justify-center items-center min-h-[400px] max-h-[70vh] overflow-auto">
-          {document.document_file ? (
-            document.mime_type?.startsWith("image/") ? (
-              <img 
-                src={document.document_file} 
-                alt={document.document_name}
-                className="max-w-full max-h-[60vh] object-contain rounded-lg"
-              />
-            ) : document.mime_type === "application/pdf" ? (
-              <iframe 
-                src={document.document_file} 
-                className="w-full h-[60vh] rounded-lg"
-                title={document.document_name}
-              />
-            ) : (
-              <div className="text-center text-gray-400">
-                <FileText size={48} className="mx-auto mb-4" />
-                <p>Preview not available for this file type</p>
-                <a 
-                  href={document.document_file} 
-                  download 
-                  className="mt-4 inline-flex items-center gap-2 text-amber-400 hover:text-amber-300"
-                >
-                  <Download size={16} /> Download File
-                </a>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="bg-gray-800 rounded-2xl w-full max-w-3xl border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-white">Employee Details</h2>
+                <p className="text-gray-400 text-sm mt-1">ID: {employee.id}</p>
               </div>
-            )
-          ) : (
-            <div className="text-center text-gray-400">
-              <AlertCircle size={48} className="mx-auto mb-4" />
-              <p>No file available</p>
+              <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition-colors cursor-pointer">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
             </div>
-          )}
-        </div>
-        <div className="p-4 border-t border-gray-700 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
-          >
-            Close
-          </button>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            {/* Employee Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Full Name</label>
+                <p className="text-white font-semibold">{employee.full_name || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Email</label>
+                <p className="text-white">{employee.email || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Phone</label>
+                <p className="text-white">{employee.phone || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Employee ID</label>
+                <p className="text-amber-400 font-semibold">{employee.employee_id || "Not Generated"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Aadhaar Number</label>
+                <p className="text-white">{employee.aadhaar_number || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">PAN Number</label>
+                <p className="text-white">{employee.pan_number || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Full Address</label>
+                <p className="text-white">{employee.full_address || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Referral Source</label>
+                <p className="text-white">{employee.referral_source || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Department</label>
+                <p className="text-white">{employee.department || "N/A"}</p>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-3">
+                <label className="text-xs text-gray-400 uppercase block">Submitted Date</label>
+                <p className="text-white">{new Date(employee.submitted_date).toLocaleString()}</p>
+              </div>
+              
+              {/* Current Status with Checkbox */}
+              <div className="bg-gray-700/30 rounded-lg p-3 col-span-1 md:col-span-2">
+                <label className="text-xs text-gray-400 uppercase block mb-3">Current Status</label>
+                <div className="flex flex-wrap gap-4 items-center">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={employeeStatus === "approved"}
+                      onChange={() => handleEmployeeStatusChange("approved")}
+                      disabled={updatingStatus}
+                      className="w-5 h-5 rounded border-gray-500 text-green-500 focus:ring-green-500 cursor-pointer disabled:opacity-50"
+                    />
+                    <span className="text-green-400 font-medium">Approved</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={employeeStatus === "rejected"}
+                      onChange={() => handleEmployeeStatusChange("rejected")}
+                      disabled={updatingStatus}
+                      className="w-5 h-5 rounded border-gray-500 text-red-500 focus:ring-red-500 cursor-pointer disabled:opacity-50"
+                    />
+                    <span className="text-red-400 font-medium">Rejected</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={employeeStatus === "pending"}
+                      onChange={() => handleEmployeeStatusChange("pending")}
+                      disabled={updatingStatus}
+                      className="w-5 h-5 rounded border-gray-500 text-yellow-500 focus:ring-yellow-500 cursor-pointer disabled:opacity-50"
+                    />
+                    <span className="text-yellow-400 font-medium">Pending</span>
+                  </label>
+                  {updatingStatus && (
+                    <Loader size={16} className="animate-spin text-amber-400" />
+                  )}
+                  {employee.rejection_reason && employeeStatus === "rejected" && (
+                    <span className="text-red-400 text-sm ml-2">Reason: {employee.rejection_reason}</span>
+                  )}
+                </div>
+              </div>
+
+              {employee.emp_card_verified && (
+                <div className="bg-gray-700/30 rounded-lg p-3">
+                  <label className="text-xs text-gray-400 uppercase block">Card Verified</label>
+                  <p className="text-green-400 font-semibold flex items-center gap-2">
+                    <CheckCircle size={16} /> Yes
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Documents Section with Checkboxes */}
+            <div className="border-t border-gray-700 pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-amber-400 flex items-center gap-2">
+                  <FileText size={18} /> Documents ({localDocuments.length})
+                </h3>
+                {localDocuments.length > 0 && (
+                  <button
+                    onClick={handleSelectAll}
+                    className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors cursor-pointer ${
+                      isAllSelected() 
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/50" 
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    <Check size={14} />
+                    {isAllSelected() ? "Deselect All" : "Select All"}
+                  </button>
+                )}
+              </div>
+
+              {localDocuments.length === 0 ? (
+                <p className="text-gray-500 text-sm">No documents uploaded</p>
+              ) : (
+                <div className="space-y-3">
+                  {localDocuments.map((doc) => (
+                    <div key={doc.id} className="bg-gray-700/30 rounded-lg p-3 border border-gray-600 flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(doc.id)}
+                          onChange={() => toggleItem(doc.id)}
+                          className="w-4 h-4 rounded border-gray-500 text-amber-500 focus:ring-amber-500 cursor-pointer flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium text-sm truncate">
+                            {doc.document_key || doc.document_type || "Untitled"}
+                          </p>
+                          <p className="text-gray-400 text-xs capitalize">{doc.document_type || "Document"}</p>
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${
+                            doc.status === "approved"
+                              ? "bg-green-500/20 text-green-400"
+                              : doc.status === "rejected"
+                              ? "bg-red-500/20 text-red-400"
+                              : "bg-yellow-500/20 text-yellow-400"
+                          }`}>
+                            {doc.status || "pending"}
+                          </span>
+                          {doc.reason && doc.status === "rejected" && (
+                            <p className="text-xs text-red-400 mt-1">Reason: {doc.reason}</p>
+                          )}
+                        </div>
+                      </div>
+                      {doc.document_file && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewDocument(doc);
+                          }}
+                          className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer flex-shrink-0"
+                          title="Preview Document"
+                        >
+                          <Eye size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Selection Info */}
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-gray-400 text-sm">
+                  {selectedItems.length} document(s) selected
+                </span>
+              </div>
+            </div>
+
+            {/* Generate ID Section */}
+            {canGenerateId && (
+              <div className="border-t border-green-500/30 pt-6">
+                <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <h4 className="text-green-400 font-semibold flex items-center gap-2">
+                        <CheckCircle size={18} />
+                        Ready for ID Generation
+                      </h4>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Employee approved and all documents approved. Click to generate Employee ID.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleGenerateId}
+                      disabled={generatingId}
+                      className="px-6 py-2.5 bg-green-600 hover:bg-green-700 rounded-lg text-white font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {generatingId ? (
+                        <>
+                          <Loader size={18} className="animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <IdCard size={18} />
+                          Generate Employee ID
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rejection Reason Input */}
+            <div className="border-t border-gray-700 pt-6">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 block mb-2">
+                    Rejection Reason {selectedItems.length > 0 && <span className="text-gray-400 text-xs">(for selected documents)</span>}
+                  </label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Enter rejection reason for selected documents..."
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-amber-500 text-white resize-none"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer with Action Buttons */}
+          <div className="p-6 border-t border-gray-700 flex justify-end gap-3 sticky bottom-0 bg-gray-800">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={submitting || selectedItems.length === 0}
+              className="px-5 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {submitting ? <Loader size={16} className="animate-spin" /> : <XCircle size={16} />}
+              Reject Selected
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={submitting || selectedItems.length === 0}
+              className="px-5 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {submitting ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+              Approve Selected
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Document Preview Modal */}
+      {previewDocument && (
+        <DocumentPreviewModal
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
+        />
+      )}
+    </>
   );
 };
 
@@ -250,53 +549,13 @@ const EmployeeDocuments = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  const [previewDocument, setPreviewDocument] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [expandedEmpId, setExpandedEmpId] = useState(null);
   const [departments, setDepartments] = useState([]);
-  
-  // States for verification
-  const [canVerifyMap, setCanVerifyMap] = useState({});
-  const [verifyingMap, setVerifyingMap] = useState({});
-
-  // Check if employee can be verified
-  const checkCanVerify = async (empId) => {
-    try {
-      const response = await fetch(`${API_BASE}/admin/employees/${empId}/can-verify`);
-      const data = await response.json();
-      setCanVerifyMap(prev => ({ ...prev, [empId]: data.data?.can_verify || false }));
-    } catch (error) {
-      console.error("Error checking verify status:", error);
-    }
-  };
-
-  // Verify employee (generate ID)
-  const verifyEmployee = async (empId) => {
-    setVerifyingMap(prev => ({ ...prev, [empId]: true }));
-    try {
-      const response = await fetch(`${API_BASE}/admin/employees/${empId}/verify`, {
-        method: "POST",
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSuccessMessage(`✅ Employee verified! ID: ${data.data.employee_id}`);
-        setTimeout(() => setSuccessMessage(""), 5000);
-        fetchData(); // Refresh data
-      } else {
-        setError(data.message);
-        setTimeout(() => setError(""), 3000);
-      }
-    } catch (error) {
-      setError("Failed to verify employee");
-      setTimeout(() => setError(""), 3000);
-    } finally {
-      setVerifyingMap(prev => ({ ...prev, [empId]: false }));
-    }
-  };
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -312,18 +571,12 @@ const EmployeeDocuments = () => {
 
       if (empsData.success) {
         setEmployees(empsData.data || []);
-        // Extract unique departments for filter
         const uniqueDepts = [...new Set(empsData.data?.map(emp => emp.department).filter(Boolean))];
         setDepartments(uniqueDepts);
-        
-        // Check verify status for each employee that is approved but not verified
-        empsData.data?.forEach(emp => {
-          if (emp.status === 'approved' && !emp.emp_card_verified) {
-            checkCanVerify(emp.id);
-          }
-        });
       }
-      if (docsData.success) setDocuments(docsData.data || []);
+      if (docsData.success) {
+        setDocuments(docsData.data || []);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("Failed to fetch data. Please check your connection.");
@@ -334,14 +587,52 @@ const EmployeeDocuments = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshTrigger]);
 
+  // 🔥 FIX: Keep selectedEmployee in sync with employees state
+  useEffect(() => {
+    if (selectedEmployee) {
+      const updatedEmp = employees.find(e => e.id === selectedEmployee.id);
+      if (updatedEmp && updatedEmp.status !== selectedEmployee.status) {
+        setSelectedEmployee(updatedEmp);
+      }
+    }
+  }, [employees]);
+
+  // Fetch single employee data and update state
+  const fetchAndUpdateEmployee = async (empId) => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/employees/${empId}`);
+      const data = await response.json();
+      if (data.success) {
+        const freshEmployee = data.data;
+        setEmployees(prev => prev.map(e => 
+          e.id === freshEmployee.id ? freshEmployee : e
+        ));
+        if (selectedEmployee && selectedEmployee.id === freshEmployee.id) {
+          setSelectedEmployee(freshEmployee);
+        }
+        return freshEmployee;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      return null;
+    }
+  };
+
+  // Update employee status (emp_cards)
   const updateEmployeeStatus = async (id, status, reason) => {
     try {
       const response = await fetch(`${API_BASE}/admin/employees/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, rejection_reason: reason }),
+        headers: { 
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({ 
+          status, 
+          rejection_reason: reason || null 
+        }),
       });
 
       const data = await response.json();
@@ -349,34 +640,144 @@ const EmployeeDocuments = () => {
       if (!data.success) {
         setError(data.message || "Action failed");
         setTimeout(() => setError(""), 3000);
-        return;
+        return false;
       }
 
-      setSuccessMessage(`Employee ${status} successfully!`);
+      // 🔥 FIX: Update the employees state immediately
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === id 
+            ? { ...emp, status: status, rejection_reason: reason || null }
+            : emp
+        )
+      );
+
+      setSuccessMessage(`Employee status updated to ${status}!`);
       setTimeout(() => setSuccessMessage(""), 3000);
-      fetchData();
+      return true;
     } catch (error) {
       console.error("Error updating employee:", error);
       setError("Failed to update employee status");
+      setTimeout(() => setError(""), 3000);
+      return false;
     }
   };
 
+  // Generate ID for employee
+  const generateEmployeeId = async (empId) => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/employees/${empId}/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccessMessage(`✅ Employee ID generated successfully! ID: ${data.data.employee_id}`);
+        setTimeout(() => setSuccessMessage(""), 5000);
+        setRefreshTrigger(prev => prev + 1);
+        return true;
+      } else {
+        setError(data.message || "Failed to generate ID");
+        setTimeout(() => setError(""), 3000);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error generating ID:", error);
+      setError("Failed to generate employee ID");
+      setTimeout(() => setError(""), 3000);
+      return false;
+    }
+  };
+
+  // Update document status
   const updateDocumentStatus = async (id, status, reason = "") => {
     try {
       const response = await fetch(`${API_BASE}/admin/employee-documents/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, rejection_reason: reason }),
+        headers: { 
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({ 
+          status, 
+          rejection_reason: reason || null 
+        }),
       });
-      if (response.ok) {
-        setSuccessMessage(`Document ${status === 'approved' ? 'approved' : 'rejected'} successfully!`);
-        setTimeout(() => setSuccessMessage(""), 3000);
-        fetchData();
+      const data = await response.json();
+      
+      if (data.success) {
+        // 🔥 FIX: Update documents state immediately
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === id 
+              ? { ...doc, status: status, rejection_reason: reason || null }
+              : doc
+          )
+        );
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Error updating document:", error);
-      setError("Failed to update document status");
+      return false;
+    }
+  };
+
+  // Bulk approve handler
+  const handleBulkApprove = async (employeeId, docIds) => {
+    try {
+      let allSuccess = true;
+      
+      for (const docId of docIds) {
+        const success = await updateDocumentStatus(docId, "approved");
+        if (!success) allSuccess = false;
+      }
+      
+      if (allSuccess) {
+        setSuccessMessage(`✅ ${docIds.length} document(s) approved successfully!`);
+        setTimeout(() => setSuccessMessage(""), 3000);
+        setRefreshTrigger(prev => prev + 1);
+        return true;
+      } else {
+        setError("Some documents failed to update");
+        setTimeout(() => setError(""), 3000);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error in bulk approve:", error);
+      setError("Failed to approve documents");
       setTimeout(() => setError(""), 3000);
+      return false;
+    }
+  };
+
+  // Bulk reject handler
+  const handleBulkReject = async (employeeId, docIds, reason) => {
+    try {
+      let allSuccess = true;
+      
+      for (const docId of docIds) {
+        const success = await updateDocumentStatus(docId, "rejected", reason);
+        if (!success) allSuccess = false;
+      }
+      
+      if (allSuccess) {
+        setSuccessMessage(`❌ ${docIds.length} document(s) rejected successfully!`);
+        setTimeout(() => setSuccessMessage(""), 3000);
+        setRefreshTrigger(prev => prev + 1);
+        return true;
+      } else {
+        setError("Some documents failed to update");
+        setTimeout(() => setError(""), 3000);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error in bulk reject:", error);
+      setError("Failed to reject documents");
+      setTimeout(() => setError(""), 3000);
+      return false;
     }
   };
 
@@ -499,57 +900,6 @@ const EmployeeDocuments = () => {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by ID, name, email, or employee ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-amber-500 text-gray-100"
-              />
-            </div>
-            
-            <div className="relative w-full sm:w-48">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-amber-500 text-gray-100 appearance-none cursor-pointer"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-
-            <div className="relative w-full sm:w-56">
-              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-amber-500 text-gray-100 appearance-none cursor-pointer"
-              >
-                <option value="all">All Departments</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <button
-            onClick={fetchData}
-            className="flex cursor-pointer items-center justify-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-        </div>
-
         <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-700">
@@ -559,7 +909,6 @@ const EmployeeDocuments = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Employee ID</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Full Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
-
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Submitted</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
@@ -568,189 +917,79 @@ const EmployeeDocuments = () => {
               <tbody className="divide-y divide-gray-700">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center px-4 py-8 text-gray-400">
+                    <td colSpan={7} className="text-center px-4 py-8 text-gray-400">
                       No employees found
                     </td>
                   </tr>
                 ) : (
                   filteredEmployees.map((emp) => {
                     const empDocuments = getDocumentsForEmp(emp.id);
-                    const isExpanded = expandedEmpId === emp.id;
-                    const canVerify = canVerifyMap[emp.id] || false;
-                    const isVerifying = verifyingMap[emp.id] || false;
                     
-                    // Check if all documents are approved
                     const allDocsApproved = empDocuments.length > 0 && empDocuments.every(doc => doc.status === "approved");
-                   const showVerifyButton =
-  emp.status === "approved" &&
-  allDocsApproved &&
-  !emp.emp_card_verified;
-                  const canClickVerify =
-  emp.status === "approved" &&
-  (!emp.employee_id || emp.employee_id === "") &&
-  !emp.emp_card_verified &&
-  allDocsApproved;
+                    const showGenerateIdButton = emp.status === "approved" && allDocsApproved && !emp.emp_card_verified;
 
                     return (
-                      <React.Fragment key={emp.id}>
-                        <tr className="hover:bg-gray-800/50 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-amber-400">{emp.id}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-300">{emp.employee_id || "N/A"}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{emp.full_name || "N/A"}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{emp.email || "N/A"}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
-                            {new Date(emp.submitted_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(emp.status)}
-                              <div className="flex gap-1 ml-2">
-                                <button
-                                  onClick={() => updateEmployeeStatus(emp.id, "approved", "")}
-                                  className="text-green-400 hover:bg-green-500/20 p-1 rounded text-xs cursor-pointer"
-                                  title="Approve"
-                                >
-                                  <CheckCircle size={14} />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const reason = prompt("Enter rejection reason:");
-                                    if (!reason) return alert("Rejection reason is required");
-                                    updateEmployeeStatus(emp.id, "rejected", reason);
-                                  }}
-                                  className="text-red-400 hover:bg-red-500/20 p-1 rounded text-xs cursor-pointer"
-                                  title="Reject"
-                                >
-                                  <XCircle size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => {
+                      <tr key={emp.id} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-amber-400">{emp.id}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-300">{emp.employee_id || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{emp.full_name || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{emp.email || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                          {new Date(emp.submitted_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(emp.status)}
+                            {emp.emp_card_verified && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-400 flex items-center gap-1">
+                                <IdCard size={12} /> ID Generated
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={async () => {
+                                const freshEmployee = await fetchAndUpdateEmployee(emp.id);
+                                if (freshEmployee) {
+                                  setSelectedEmployee(freshEmployee);
+                                  setShowEmployeeModal(true);
+                                } else {
                                   setSelectedEmployee(emp);
                                   setShowEmployeeModal(true);
-                                }}
-                                className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded-lg transition-colors cursor-pointer"
-                                title="View Details"
-                              >
-                                <Eye size={18} />
-                              </button>
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                              title="View Details & Documents"
+                            >
+                              <Eye size={14} />
+                              View Details
+                              {empDocuments.length > 0 && (
+                                <span className="ml-1 bg-amber-600 px-1.5 py-0.5 rounded text-xs">
+                                  {empDocuments.length}
+                                </span>
+                              )}
+                            </button>
+                            
+                            {showGenerateIdButton && (
                               <button
-                                onClick={() => setExpandedEmpId(isExpanded ? null : emp.id)}
-                                className="p-1.5 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer"
-                                title={isExpanded ? "Hide Documents" : "View Documents"}
+                                onClick={async () => {
+                                  const success = await generateEmployeeId(emp.id);
+                                  if (success) {
+                                    setRefreshTrigger(prev => prev + 1);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                                title="Generate Employee ID"
                               >
-                                <FileText size={18} />
+                                <IdCard size={14} />
+                                Generate ID
                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                        
-                        {isExpanded && (
-                          <tr className="bg-gray-900/50">
-                            <td colSpan={9} className="px-4 py-4">
-                              <div className="space-y-6">
-                                <div>
-                                  <h4 className="text-md font-semibold text-amber-400 mb-3 flex items-center gap-2">
-                                    <FileText size={16} /> Employee Documents
-                                  </h4>
-                                  {empDocuments.length === 0 ? (
-                                    <p className="text-gray-500 text-sm">No documents uploaded</p>
-                                  ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                      {empDocuments.map((doc) => (
-                                        <div key={doc.id} className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                                          <div className="flex items-start justify-between mb-2">
-                                            <div className="flex-1">
-                                              <p className="text-white font-medium text-sm">{doc.document_key || "Untitled"}</p>
-                                              <p className="text-gray-500 text-xs">{doc.document_type}</p>
-                                            </div>
-                                            <button
-                                              onClick={() => setPreviewDocument(doc)}
-                                              className="p-1 text-amber-400 hover:bg-amber-500/20 rounded transition-colors"
-                                              title="Preview"
-                                            >
-                                              <Eye size={14} />
-                                            </button>
-                                          </div>
-                                          <div className="flex items-center justify-between mt-2">
-                                            <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                              doc.status === "approved"
-                                                ? "bg-green-500/20 text-green-400"
-                                                : doc.status === "rejected"
-                                                ? "bg-red-500/20 text-red-400"
-                                                : "bg-yellow-500/20 text-yellow-400"
-                                            }`}>
-                                              {doc.status || "pending"}
-                                            </span>
-                                            <div className="flex gap-1">
-                                              <button
-                                                onClick={() => updateDocumentStatus(doc.id, "approved")}
-                                                className="p-1 text-green-400 hover:bg-green-500/20 rounded transition-colors"
-                                                title="Approve"
-                                              >
-                                                <CheckCircle size={14} />
-                                              </button>
-                                              <button
-                                                onClick={() => {
-                                                  const reason = prompt("Enter rejection reason:");
-                                                  if (!reason) return alert("Rejection reason required");
-updateDocumentStatus(doc.id, "rejected", reason);
-                                                }}
-                                                className="p-1 text-red-400 hover:bg-red-500/20 rounded transition-colors"
-                                                title="Reject"
-                                              >
-                                                <XCircle size={14} />
-                                              </button>
-                                            </div>
-                                          </div>
-                                          {doc.rejection_reason && doc.status === "rejected" && (
-                                            <p className="text-xs text-red-400 mt-2">{doc.rejection_reason}</p>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Verify Button - Shows only when Card Approved AND All Documents Approved */}
-                                {showVerifyButton && (
-                                  <div className="mt-6 pt-4 border-t border-green-500/30">
-                                    <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
-                                      <div className="flex items-center justify-between flex-wrap gap-4">
-                                        <div>
-                                          <h4 className="text-green-400 font-semibold flex items-center gap-2">
-                                            <CheckCircle size={18} />
-                                            Ready for Verification
-                                          </h4>
-                                          <p className="text-gray-400 text-sm mt-1">
-                                            All documents approved and employee card approved. Click to generate Employee ID.
-                                          </p>
-                                        </div>
-                                       <button
-  onClick={() => canClickVerify && verifyEmployee(emp.id)}
-  disabled={!canClickVerify || isVerifying}
-  className={`px-6 py-2.5 rounded-lg text-white font-semibold flex items-center gap-2 transition-colors
-    ${canClickVerify 
-      ? "bg-green-600 hover:bg-green-700 cursor-pointer" 
-      : "bg-gray-600 cursor-not-allowed opacity-50"
-    }`}
->
-  <UserCheck size={18} />
-  {isVerifying ? "Verifying..." : "Verify Employee & Generate ID"}
-</button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })
                 )}
@@ -774,17 +1013,19 @@ updateDocumentStatus(doc.id, "rejected", reason);
         )}
 
         {showEmployeeModal && (
-          <EmployeeModal
+          <EmployeeDetailsModal
             employee={selectedEmployee}
-            onClose={() => setShowEmployeeModal(false)}
-            onUpdateStatus={updateEmployeeStatus}
-          />
-        )}
-
-        {previewDocument && (
-          <DocumentPreviewModal
-            document={previewDocument}
-            onClose={() => setPreviewDocument(null)}
+            documents={getDocumentsForEmp(selectedEmployee?.id)}
+            onClose={() => {
+              setShowEmployeeModal(false);
+              setRefreshTrigger(prev => prev + 1);
+            }}
+            onBulkApprove={handleBulkApprove}
+            onBulkReject={handleBulkReject}
+            onGenerateId={generateEmployeeId}
+            onUpdateEmployeeStatus={updateEmployeeStatus}
+            onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+            onEmployeeUpdate={fetchAndUpdateEmployee}
           />
         )}
       </div>
