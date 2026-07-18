@@ -52,7 +52,6 @@ const EmployeeDetailsModal = ({
   const [localDocuments, setLocalDocuments] = useState(documents || []);
   const [refreshKey, setRefreshKey] = useState(0);
 const [previewLoading, setPreviewLoading] = useState(false);
-
   // Update local state when props change
   useEffect(() => {
     if (employee) {
@@ -205,7 +204,13 @@ const [previewLoading, setPreviewLoading] = useState(false);
 
   const DocumentPreviewModal = ({ document, onClose }) => {
     if (!document) return null;
-
+useEffect(() => {
+  return () => {
+    if (document?.document_file?.startsWith("blob:")) {
+      URL.revokeObjectURL(document.document_file);
+    }
+  };
+}, [document]);
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="bg-gray-800 rounded-2xl w-[500px] max-w-xl border border-gray-700 shadow-2xl">
@@ -425,32 +430,36 @@ const [previewLoading, setPreviewLoading] = useState(false);
                         </div>
                       </div>
                       <button
-  onClick={async (e) => {
-    e.stopPropagation();
+onClick={async (e) => {
+  e.stopPropagation();
 
-    try {
-      setPreviewLoading(true);
+  try {
+    setPreviewLoading(true);
 
-      const res = await fetch(
-        `${API_BASE}/admin/employee-documents/${doc.id}`
-      );
+    const res = await fetch(
+      `${API_BASE}/admin/employee-documents/${doc.id}`
+    );
 
-      const data = await res.json();
-
-      if (data.success) {
-        setPreviewDocument({
-          ...doc,
-          document_file: data.data.document_file,
-          mime_type: "image/png",
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load document");
-    } finally {
-      setPreviewLoading(false);
+    if (!res.ok) {
+      throw new Error("Document not found");
     }
-  }}
+
+    const blob = await res.blob();
+    const imageUrl = URL.createObjectURL(blob);
+
+    setPreviewDocument({
+      ...doc,
+      document_file: imageUrl,
+      mime_type: blob.type || "image/png",
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load document");
+  } finally {
+    setPreviewLoading(false);
+  }
+}}
   className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer"
 >
   {previewLoading ? (
@@ -556,12 +565,17 @@ const [previewLoading, setPreviewLoading] = useState(false);
       </div>
 
       {/* Document Preview Modal */}
-      {previewDocument && (
-        <DocumentPreviewModal
-          document={previewDocument}
-          onClose={() => setPreviewDocument(null)}
-        />
-      )}
+     {previewDocument && (
+  <DocumentPreviewModal
+    document={previewDocument}
+    onClose={() => {
+      if (previewDocument.document_file?.startsWith("blob:")) {
+        URL.revokeObjectURL(previewDocument.document_file);
+      }
+      setPreviewDocument(null);
+    }}
+  />
+)}
     </>
   );
 };
