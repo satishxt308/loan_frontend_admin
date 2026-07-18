@@ -31,15 +31,11 @@ const Login = ({ setIsAuthenticated }) => {
         {/* Logo and Brand */}
         <div className="text-center mb-4">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-500/50 mb-2">
-            <img 
-              src="/src/assets/logo.png" 
-              alt="PSWB Logo" 
-              className="w-12 h-12 object-contain"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/48?text=PSWB';
-              }}
-            />
+            <img
+  src="/logo.png"
+  alt="PSWB Logo"
+  className="w-8 h-8 object-contain"
+/>
           </div>
           <h1 className="text-3xl font-bold text-amber-400">PSWB Admin</h1>
           <p className="text-gray-400">Transforming Agriculture · Empowering Farmers</p>

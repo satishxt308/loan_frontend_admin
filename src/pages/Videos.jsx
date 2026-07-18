@@ -67,29 +67,9 @@ const Videos = () => {
       const data = await res.json();
       setVideos(data);
     } catch (err) {
-      console.error("Error fetching videos:", err);
-      // Demo data if API fails
-      setVideos([
-        { 
-          id: 1, 
-          type_id: 1, 
-          name: "Getting Started", 
-          description: "Learn the basics",
-          video_url: "https://example.com/video1.mp4",
-          thumbnail_url: "https://via.placeholder.com/300x200",
-          video_source: "url"
-        },
-        { 
-          id: 2, 
-          type_id: 1, 
-          name: "Advanced Tips", 
-          description: "Pro tips and tricks",
-          video_url: "https://example.com/video2.mp4",
-          thumbnail_url: "https://via.placeholder.com/300x200",
-          video_source: "url"
-        }
-      ]);
-    }
+  console.error("Error fetching video types:", err);
+  setVideoTypes([]);
+}
   };
 
   // Helper functions for YouTube

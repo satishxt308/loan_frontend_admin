@@ -23,15 +23,12 @@ const Header = ({ sidebarOpen, setSidebarOpen, setIsAuthenticated }) => {
           </button>
           <div className="flex items-center gap-3">
             {/* Logo Image */}
-            <img 
-              src="/src/assets/logo.png" 
-              alt="PSWB Logo" 
-              className="w-8 h-8 object-contain"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/32?text=PSWB';
-              }}
-            />
+            <img
+  src="/logo.png"
+  alt="PSWB Logo"
+  className="w-8 h-8 object-contain"
+/>
+            
             <div className="flex items-center gap-2">
               <span className="text-amber-500 font-bold text-xl">PSWB</span>
               <span className="text-gray-400 hidden sm:inline">Admin Panel</span>
