@@ -4,7 +4,6 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  AlertCircle,
   DollarSign,
   FileText,
   Users,
@@ -15,7 +14,6 @@ import {
   Image as ImageIcon,
   X,
   Loader,
-  QrCode,
   Wallet,
   User,
   CreditCard,
@@ -619,15 +617,18 @@ const CitizenDocuments = () => {
       
       if (paysData.success) {
         const paymentsData = paysData.payments || [];
-        const uniquePayments = [];
-        const seenIds = new Set();
-        for (const payment of paymentsData) {
-          if (!seenIds.has(payment.id)) {
-            seenIds.add(payment.id);
-            uniquePayments.push(payment);
-          }
-        }
-        setPayments(uniquePayments);
+        // const uniquePayments = [];
+        // const seenIds = new Set();
+        // for (const payment of paymentsData) {
+        //   if (!seenIds.has(payment.id)) {
+        //     seenIds.add(payment.id);
+        //     uniquePayments.push(payment);
+        //   }
+        // }
+        // setPayments(uniquePayments);
+        setPayments(
+  [...new Map((paysData.payments || []).map(p => [p.id, p])).values()]
+);
       }
     } catch (error) {
       setError("Failed to fetch data. Please check your connection.");
@@ -644,29 +645,18 @@ const CitizenDocuments = () => {
     return documents.filter((doc) => doc.citizen_id === citizenId);
   };
 
-  const getPaymentsForCitizen = (citizenId) => {
-    const citizen = citizens.find(c => c.id === citizenId);
-    if (!citizen) {
-      return [];
-    }
-    
-    // Use the citizen's user_id to match payments (citizen_payment_history.citizen_id references users.id)
-    const userId = citizen.user_id || citizenId;
-    
-    const filtered = payments.filter((pay) => {
-      return pay.citizen_id === userId;
-    });
-    
-    const uniquePayments = [];
-    const seenIds = new Set();
-    for (const payment of filtered) {
-      if (!seenIds.has(payment.id)) {
-        seenIds.add(payment.id);
-        uniquePayments.push(payment);
-      }
-    }
-    return uniquePayments;
-  };
+ const getPaymentsForCitizen = (citizenId) => {
+  const citizen = citizens.find(c => c.id === citizenId);
+  if (!citizen) return [];
+
+  const userId = citizen.user_id || citizenId;
+
+  return [...new Map(
+    payments
+      .filter(p => p.citizen_id === userId)
+      .map(p => [p.id, p])
+  ).values()];
+};
 
   const filteredCitizens = citizens.filter((citizen) => {
     const name = citizen.name || "";

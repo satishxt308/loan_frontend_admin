@@ -210,6 +210,7 @@ const ReviewModal = ({
   const [localDocuments, setLocalDocuments] = useState(documents || []);
   const [localPayments, setLocalPayments] = useState(payments || []);
   const [refreshKey, setRefreshKey] = useState(0);
+const [reviewLoading, setReviewLoading] = useState(false);
 
   // Update local state when props change
   useEffect(() => {
@@ -1115,10 +1116,21 @@ const getPaymentsForApp = (appId) => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <button
-                            onClick={() => {
-                              setSelectedApplication(app);
-                              setShowReviewModal(true);
-                            }}
+                            onClick={async () => {
+  setReviewLoading(true);
+
+  try {
+    await fetchData(); // fetch latest applications/documents/payments
+
+    const latestApp =
+      applications.find(a => a.id === app.id) || app;
+
+    setSelectedApplication(latestApp);
+    setShowReviewModal(true);
+  } finally {
+    setReviewLoading(false);
+  }
+}}
                             className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
                             title="Review All (Documents & Payments)"
                           >
