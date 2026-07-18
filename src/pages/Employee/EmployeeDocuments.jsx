@@ -51,6 +51,7 @@ const EmployeeDetailsModal = ({
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [localDocuments, setLocalDocuments] = useState(documents || []);
   const [refreshKey, setRefreshKey] = useState(0);
+const [previewLoading, setPreviewLoading] = useState(false);
 
   // Update local state when props change
   useEffect(() => {
@@ -423,18 +424,41 @@ const EmployeeDetailsModal = ({
                           )}
                         </div>
                       </div>
-                      {doc.document_file && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewDocument(doc);
-                          }}
-                          className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer flex-shrink-0"
-                          title="Preview Document"
-                        >
-                          <Eye size={18} />
-                        </button>
-                      )}
+                      <button
+  onClick={async (e) => {
+    e.stopPropagation();
+
+    try {
+      setPreviewLoading(true);
+
+      const res = await fetch(
+        `${API_BASE}/admin/employee-documents/${doc.id}`
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        setPreviewDocument({
+          ...doc,
+          document_file: data.data.document_file,
+          mime_type: "image/png",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load document");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }}
+  className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors cursor-pointer"
+>
+  {previewLoading ? (
+    <Loader size={18} className="animate-spin" />
+  ) : (
+    <Eye size={18} />
+  )}
+</button>
                     </div>
                   ))}
                 </div>
@@ -1030,7 +1054,7 @@ const EmployeeDocuments = () => {
         )}
       </div>
     </div>
-  );
+  ); 
 };
 
 export default EmployeeDocuments;
