@@ -432,9 +432,9 @@ const ReviewModal = ({
                   onClick={() => setShowFamily(!showFamily)}
                   className="w-full flex items-center justify-between text-md font-semibold text-amber-400 mb-3"
                 >
-                  <span className="flex items-center gap-2">
+                  {/* <span className="flex items-center gap-2">
                     <Users2 size={16} /> Family Members ({familyMembers.length})
-                  </span>
+                  </span> */}
                   {showFamily ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
                 {showFamily && (
